@@ -7,7 +7,7 @@ const dictionaries: Record<Language, Dictionary> = {
   ko: {
     'brand.tagline': '모든 모델을 가로지르는 나의 맥락',
     'nav.chat': '채팅', 'nav.memory': '메모리', 'nav.persona': '페르소나', 'nav.projects': '프로젝트', 'nav.settings': '설정', 'nav.inspector': '컨텍스트 검사기',
-    'chat.conversations': '대화 목록', 'chat.emptyConversations': '아직 대화가 없습니다.', 'chat.new': '새 채팅', 'chat.global': '전체 맥락', 'chat.conversation': '대화', 'chat.empty.title': '무엇을 함께 해볼까요?',
+    'chat.conversations': '대화 목록', 'chat.emptyConversations': '아직 대화가 없습니다.', 'chat.new': '새 채팅', 'chat.global': '전체 맥락', 'chat.conversation': '대화', 'chat.empty.title': '무엇을 함께 해볼까요?', 'chat.delete': '대화 삭제', 'chat.deleteConfirm': '이 대화를 삭제할까요? 대화와 메시지가 모두 삭제됩니다.', 'chat.deleted': '대화가 삭제되었습니다.',
     'chat.empty.body': 'Espera는 중요한 프로젝트와 선호를 메모리 후보로 제안합니다. 승인한 메모리는 어떤 AI 모델에서도 이어집니다.',
     'chat.prompt.memory': '내가 기억된 내용을 보여줘', 'chat.prompt.plan': '이번 주 계획을 세워줘', 'chat.prompt.project': 'Project Espera를 설명해줘',
     'chat.placeholder': 'Espera에게 메시지 보내기…', 'chat.disclaimer': 'Espera는 실수할 수 있습니다. 중요한 메모리는 승인하기 전에 확인하세요.', 'chat.streaming': '응답 생성 중…', 'chat.retry': '다시 시도',
@@ -27,7 +27,7 @@ const dictionaries: Record<Language, Dictionary> = {
   en: {
     'brand.tagline': 'Your context, across every model',
     'nav.chat': 'Chat', 'nav.memory': 'Memory', 'nav.persona': 'Persona', 'nav.projects': 'Projects', 'nav.settings': 'Settings', 'nav.inspector': 'Context inspector',
-    'chat.conversations': 'Conversations', 'chat.emptyConversations': 'No conversations yet.', 'chat.new': 'New chat', 'chat.global': 'Global context', 'chat.conversation': 'Conversation', 'chat.empty.title': 'What shall we work on?',
+    'chat.conversations': 'Conversations', 'chat.emptyConversations': 'No conversations yet.', 'chat.new': 'New chat', 'chat.global': 'Global context', 'chat.conversation': 'Conversation', 'chat.empty.title': 'What shall we work on?', 'chat.delete': 'Delete conversation', 'chat.deleteConfirm': 'Delete this conversation and all of its messages?', 'chat.deleted': 'Conversation deleted.',
     'chat.empty.body': 'Espera proposes important projects and preferences as memories. Approved memories continue across every AI model.', 'chat.prompt.memory': 'Show me what you remember', 'chat.prompt.plan': 'Help me plan this week', 'chat.prompt.project': 'Explain Project Espera', 'chat.placeholder': 'Message Espera…', 'chat.disclaimer': 'Espera can make mistakes. Review important memories before approving them.', 'chat.streaming': 'Generating response…', 'chat.retry': 'Retry',
     'memory.title': 'Memory', 'memory.subtitle': 'Review proposed memories and choose what becomes part of your long-term context.', 'memory.add': 'Add memory', 'memory.pending': 'Review queue', 'memory.active': 'Active', 'memory.history': 'History', 'memory.search': 'Search memories…',
     'persona.title': 'Persona', 'persona.subtitle': 'Define how your AI should treat you and respond to you.', 'persona.edit': 'Edit persona', 'projects.title': 'Projects', 'projects.subtitle': 'Keep long-running work separate with project-scoped memory and context.', 'projects.create': 'Create project', 'projects.name': 'Project name', 'projects.description': 'What belongs in this project?', 'projects.empty': 'No projects yet.',

@@ -52,5 +52,13 @@ export function createConversationRoutes(db: D1Database) {
     return c.json({ messages });
   });
 
+  // DELETE /api/conversations/:id
+  router.delete('/:id', async (c) => {
+    const userId = requestUserId(c);
+    const deleted = await convRepo.deleteConversation(c.req.param('id'), userId);
+    if (!deleted) return c.json({ error: 'Conversation not found' }, 404);
+    return c.body(null, 204);
+  });
+
   return router;
 }

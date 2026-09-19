@@ -64,10 +64,17 @@ export const ChatView: React.FC<ChatViewProps> = ({
   useEffect(() => {
     const handleNewConversation = () => { void handleCreateNewConversation(); };
     const handleSelectConversation = (event: Event) => setActiveConvId((event as CustomEvent<string>).detail);
+    const handleDeletedConversation = (event: Event) => {
+      const deletedId = (event as CustomEvent<string>).detail;
+      setConversations((current) => current.filter((conversation) => conversation.id !== deletedId));
+      setActiveConvId((current) => current === deletedId ? null : current);
+      setMessages((current) => current.length > 0 && activeConvId === deletedId ? [] : current);
+    };
     window.addEventListener('espera:new-conversation', handleNewConversation);
     window.addEventListener('espera:select-conversation', handleSelectConversation);
-    return () => { window.removeEventListener('espera:new-conversation', handleNewConversation); window.removeEventListener('espera:select-conversation', handleSelectConversation); };
-  }, []);
+    window.addEventListener('espera:conversation-deleted', handleDeletedConversation);
+    return () => { window.removeEventListener('espera:new-conversation', handleNewConversation); window.removeEventListener('espera:select-conversation', handleSelectConversation); window.removeEventListener('espera:conversation-deleted', handleDeletedConversation); };
+  }, [activeConvId]);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('espera:conversations-updated', { detail: { conversations, activeId: activeConvId } }));

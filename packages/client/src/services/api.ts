@@ -123,6 +123,11 @@ export const api = {
     return data.messages || [];
   },
 
+  async deleteConversation(conversationId: string): Promise<void> {
+    const res = await request(`${BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Conversation could not be deleted');
+  },
+
   // Streaming Chat
   async streamChat(params: StreamChatParams): Promise<void> {
     const headers: Record<string, string> = {

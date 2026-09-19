@@ -44,6 +44,14 @@ export class ConversationRepository {
     return res.results || [];
   }
 
+  async deleteConversation(id: string, userId: string): Promise<boolean> {
+    const result = await this.db
+      .prepare('DELETE FROM conversations WHERE id = ? AND user_id = ?')
+      .bind(id, userId)
+      .run();
+    return (result.meta?.changes ?? 0) > 0;
+  }
+
   async addMessage(msg: {
     id?: string;
     conversationId: string;

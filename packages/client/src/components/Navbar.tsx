@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Brain, FolderKanban, Menu, MessageSquare, Plus, Settings, Sparkles, Terminal, X } from 'lucide-react';
+import { Brain, FolderKanban, Menu, MessageSquare, Plus, Settings, Sparkles, Terminal, Trash2, X } from 'lucide-react';
 import type { Conversation } from '@espera/shared';
 import type { SessionState } from '../stores/session.js';
 import type { AuthState } from '../services/api.js';
 import { AccountMenu } from './Account/AccountMenu.js';
 import { useLanguage } from '../i18n.js';
+import { api } from '../services/api.js';
 
 interface NavbarProps {
   currentTab: 'chat' | 'memory' | 'persona' | 'projects' | 'settings';
@@ -45,13 +46,28 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, pending
   }
 
   function createConversation() {
-    window.dispatchEvent(new CustomEvent('espera:new-conversation'));
+    onSelectTab('chat');
+    window.setTimeout(() => window.dispatchEvent(new CustomEvent('espera:new-conversation')), 0);
     setMobileOpen(false);
   }
 
   function selectConversation(id: string) {
-    window.dispatchEvent(new CustomEvent('espera:select-conversation', { detail: id }));
+    onSelectTab('chat');
+    window.setTimeout(() => window.dispatchEvent(new CustomEvent('espera:select-conversation', { detail: id })), 0);
     setMobileOpen(false);
+  }
+
+  async function deleteConversation(event: React.MouseEvent, conversation: Conversation) {
+    event.stopPropagation();
+    if (!window.confirm(t('chat.deleteConfirm'))) return;
+    try {
+      await api.deleteConversation(conversation.id);
+      const next = conversations.filter((item) => item.id !== conversation.id);
+      setConversations(next);
+      window.dispatchEvent(new CustomEvent('espera:conversation-deleted', { detail: conversation.id }));
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Conversation could not be deleted');
+    }
   }
 
   const navigation = () => (
@@ -71,7 +87,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, pending
       <div className="min-h-0 flex-1">
         <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-600">{t('chat.conversations')}</p>
         <div className="max-h-[min(32vh,320px)] space-y-1 overflow-y-auto">
-          {conversations.length === 0 ? <p className="px-3 py-2 text-xs text-neutral-600">{t('chat.emptyConversations')}</p> : conversations.map((conversation) => <button key={conversation.id} onClick={() => selectConversation(conversation.id)} className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs transition ${activeConversationId === conversation.id ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:bg-neutral-900 hover:text-neutral-100'}`}><MessageSquare className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{conversation.title || t('chat.new')}</span></button>)}
+          {conversations.length === 0 ? <p className="px-3 py-2 text-xs text-neutral-600">{t('chat.emptyConversations')}</p> : conversations.map((conversation) => <div key={conversation.id} className={`group flex items-center gap-1 rounded-lg transition ${activeConversationId === conversation.id ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:bg-neutral-900 hover:text-neutral-100'}`}><button onClick={() => selectConversation(conversation.id)} className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left text-xs"><MessageSquare className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{conversation.title || t('chat.new')}</span></button><button aria-label={`${t('chat.delete')} ${conversation.title || t('chat.new')}`} title={t('chat.delete')} onClick={(event) => void deleteConversation(event, conversation)} className="mr-1 rounded p-1.5 text-neutral-600 opacity-0 transition hover:bg-red-950/50 hover:text-red-300 group-hover:opacity-100"><Trash2 className="h-3.5 w-3.5" /></button></div>)}
         </div>
       </div>
       <div className="my-5 border-t border-neutral-800" />
