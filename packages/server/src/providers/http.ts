@@ -34,7 +34,12 @@ export function normalizeBaseUrl(value: string | undefined, fallback: string) {
   return url.toString().replace(/\/$/, '');
 }
 export function endpoint(base: string, path: string) { return `${base.replace(/\/$/, '')}/${path.replace(/^\//, '')}`; }
-export function openAIBase(value?: string) { const base = normalizeBaseUrl(value, 'https://api.openai.com/v1'); return base.endsWith('/v1') ? base : `${base}/v1`; }
+export function openAIBase(value?: string) {
+  // A custom OpenAI-compatible gateway owns its complete path. Do not append
+  // /v1: gateways such as /v1/gateway would become /v1/gateway/v1.
+  if (value?.trim()) return normalizeBaseUrl(value, '');
+  return normalizeBaseUrl(undefined, 'https://api.openai.com/v1');
+}
 export async function safeFetch(url: string, init: RequestInit, apiKey?: string) { try { const response = await fetch(url, { ...init, redirect: 'manual' }); if (response.status >= 300 && response.status < 400) throw new ProviderError('invalid_endpoint', 'Provider redirects are not allowed', 400); return response; } catch (error) { if (error instanceof ProviderError) throw error; const message = error instanceof Error ? error.message : 'network failure'; throw new ProviderError('network_error', apiKey ? message.replaceAll(apiKey, '[REDACTED]') : message); } }
 export function statusError(status: number): ProviderError { if (status === 401) return new ProviderError('invalid_credential', 'Invalid API key', 401); if (status === 403) return new ProviderError('permission_denied', 'Permission denied', 403); if (status === 404) return new ProviderError('model_not_found', 'Endpoint or model not found', 404); if (status === 429) return new ProviderError('rate_limited', 'Rate limit exceeded', 429); return new ProviderError(status >= 500 ? 'provider_unavailable' : 'invalid_response', `Provider request failed (${status})`, status); }
 export function authHeaders(credential: ProviderCredential): Record<string, string> { const headers: Record<string, string> = {}; if (credential.apiKey) headers.Authorization = `Bearer ${credential.apiKey}`; return headers; }

@@ -8,7 +8,8 @@ describe('Provider connections and endpoint security', () => {
 
   it('normalizes OpenAI-compatible URLs without duplicating /v1', () => {
     expect(openAIBase('https://example.com/v1/')).toBe('https://example.com/v1');
-    expect(openAIBase('https://example.com')).toBe('https://example.com/v1');
+    expect(openAIBase('https://example.com')).toBe('https://example.com');
+    expect(openAIBase('https://factchat-cloud.mindlogic.ai/v1/gateway')).toBe('https://factchat-cloud.mindlogic.ai/v1/gateway');
     expect(endpoint(openAIBase('https://example.com/v1'), 'models')).toBe('https://example.com/v1/models');
   });
 
