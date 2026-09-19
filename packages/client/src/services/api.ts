@@ -9,6 +9,7 @@ import type {
   ContextRun,
   ModelDescriptor,
   ProviderCapabilities,
+  Project,
 } from '@espera/shared';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
@@ -46,6 +47,24 @@ export interface StreamChatParams {
 }
 
 export const api = {
+  async getProjects(): Promise<Project[]> {
+    const res = await fetch(`${BASE_URL}/api/projects`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Projects could not be loaded');
+    return data.projects || [];
+  },
+
+  async createProject(name: string, description: string): Promise<Project> {
+    const res = await fetch(`${BASE_URL}/api/projects`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, description }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Project could not be created');
+    return data.project;
+  },
+
+  async deleteProject(id: string): Promise<void> {
+    const res = await fetch(`${BASE_URL}/api/projects/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Project could not be deleted');
+  },
   // Conversations
   async getConversations(): Promise<Conversation[]> {
     const res = await fetch(`${BASE_URL}/api/conversations`);

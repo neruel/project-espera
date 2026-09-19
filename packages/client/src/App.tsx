@@ -4,6 +4,7 @@ import { ChatView } from './components/Chat/ChatView.js';
 import { MemoryManager } from './components/Memory/MemoryManager.js';
 import { PersonaEditor } from './components/Persona/PersonaEditor.js';
 import { SettingsView } from './components/Settings/SettingsView.js';
+import { ProjectsView } from './components/Projects/ProjectsView.js';
 import { ContextInspectorModal } from './components/Inspector/ContextInspectorModal.js';
 import {
   getInitialSession,
@@ -11,9 +12,10 @@ import {
   type SessionState,
 } from './stores/session.js';
 import { api, type ProviderInfo } from './services/api.js';
+import type { Project } from '@espera/shared';
 
 export function App() {
-  const [currentTab, setCurrentTab] = useState<'chat' | 'memory' | 'persona' | 'settings'>('chat');
+  const [currentTab, setCurrentTab] = useState<'chat' | 'memory' | 'persona' | 'projects' | 'settings'>('chat');
   const [session, setSession] = useState<SessionState>(getInitialSession);
   const [providers, setProviders] = useState<ProviderInfo[]>([
     {
@@ -27,6 +29,7 @@ export function App() {
     },
   ]);
   const [pendingCount, setPendingCount] = useState<number>(0);
+  const [projects, setProjects] = useState<Project[]>([]);
 
   useEffect(() => {
     saveSessionState(session);
@@ -36,6 +39,7 @@ export function App() {
     loadProviders();
     loadPendingCount();
     loadConnections();
+    loadProjects();
   }, []);
 
   async function loadProviders() {
@@ -65,6 +69,10 @@ export function App() {
     } catch (err) {
       console.error('Failed to load provider connections', err);
     }
+  }
+
+  async function loadProjects() {
+    try { setProjects(await api.getProjects()); } catch (err) { console.error('Failed to load projects', err); }
   }
 
   function updateSession(partial: Partial<SessionState>) {
@@ -97,6 +105,7 @@ export function App() {
             onOpenInspector={(convId) => openInspector(convId)}
             onNavigateToMemory={() => setCurrentTab('memory')}
             onPendingCountChange={loadPendingCount}
+            projects={projects}
           />
         )}
 
@@ -105,6 +114,7 @@ export function App() {
         )}
 
         {currentTab === 'persona' && <PersonaEditor />}
+        {currentTab === 'projects' && <ProjectsView />}
 
         {currentTab === 'settings' && (
           <SettingsView

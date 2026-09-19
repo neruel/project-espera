@@ -6,12 +6,13 @@ import {
   Sparkles,
   Terminal,
   ShieldCheck,
+  FolderKanban,
 } from 'lucide-react';
 import type { SessionState } from '../stores/session.js';
 
 interface NavbarProps {
-  currentTab: 'chat' | 'memory' | 'persona' | 'settings';
-  onSelectTab: (tab: 'chat' | 'memory' | 'persona' | 'settings') => void;
+  currentTab: 'chat' | 'memory' | 'persona' | 'projects' | 'settings';
+  onSelectTab: (tab: 'chat' | 'memory' | 'persona' | 'projects' | 'settings') => void;
   pendingCount: number;
   session: SessionState;
   onToggleInspector: () => void;
@@ -45,6 +46,16 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Navigation Tabs */}
         <nav className="flex items-center space-x-1 sm:space-x-2">
+          <button
+            onClick={() => onSelectTab('projects')}
+            className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition ${
+              currentTab === 'projects' ? 'bg-slate-800 text-sky-400 shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+            }`}
+          >
+            <FolderKanban className="w-4 h-4" />
+            <span className="hidden sm:inline">Projects</span>
+          </button>
+
           <button
             onClick={() => onSelectTab('chat')}
             className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition ${

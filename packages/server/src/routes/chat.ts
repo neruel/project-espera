@@ -12,6 +12,7 @@ import { ProviderRegistry } from '../providers/registry.js';
 import { MemoryLifecycleCoordinator } from '../memory/lifecycle.js';
 import { MemoryExtractor } from '../memory/extractor.js';
 import { MemoryDeduplicator } from '../memory/deduplicator.js';
+import { ProjectRepository } from '../db/repositories/project.repo.js';
 
 export function createChatRoutes(db: D1Database, registry: ProviderRegistry) {
   const router = new Hono();
@@ -27,6 +28,7 @@ export function createChatRoutes(db: D1Database, registry: ProviderRegistry) {
     new MemoryExtractor(),
     new MemoryDeduplicator()
   );
+  const projectRepo = new ProjectRepository(db);
 
   router.post('/', async (c) => {
     const rawBody = await c.req.json();
@@ -76,12 +78,13 @@ export function createChatRoutes(db: D1Database, registry: ProviderRegistry) {
     const recentMessages = await convRepo.getRecentMessages(convId, 10);
 
     // 3. Compose context using ContextEngine
+    const project = body.projectId ? await projectRepo.get(body.projectId, user.id) : null;
     const composition = contextEngine.compose({
       userId: user.id,
       conversationId: convId,
       currentQuery: body.content,
       persona,
-      project: null,
+      project,
       activeMemories,
       recentMessages,
       providerId: body.providerId,

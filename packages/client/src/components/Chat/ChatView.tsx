@@ -11,7 +11,7 @@ import {
   Menu,
   X,
 } from 'lucide-react';
-import type { Conversation, Message } from '@espera/shared';
+import type { Conversation, Message, Project } from '@espera/shared';
 import { api, type ProviderInfo } from '../../services/api.js';
 import type { SessionState } from '../../stores/session.js';
 
@@ -22,6 +22,7 @@ interface ChatViewProps {
   onOpenInspector: (conversationId: string) => void;
   onNavigateToMemory: () => void;
   onPendingCountChange: () => void;
+  projects: Project[];
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
@@ -31,6 +32,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onOpenInspector,
   onNavigateToMemory,
   onPendingCountChange,
+  projects,
 }) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
@@ -40,6 +42,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [streamDelta, setStreamDelta] = useState('');
   const [recentExtractedCount, setRecentExtractedCount] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -52,6 +55,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   useEffect(() => {
     if (activeConvId) {
       loadMessages(activeConvId);
+      setSelectedProjectId(conversations.find((conversation) => conversation.id === activeConvId)?.projectId || null);
       setRecentExtractedCount(0);
     } else {
       setMessages([]);
@@ -86,7 +90,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   async function handleCreateNewConversation() {
     try {
-      const conv = await api.createConversation('새 대화');
+      const conv = await api.createConversation('New Conversation', selectedProjectId);
       setConversations((prev) => [conv, ...prev]);
       setActiveConvId(conv.id);
       setMessages([]);
@@ -131,6 +135,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         content: query,
         providerId: session.providerId,
         modelId: session.modelId,
+        projectId: selectedProjectId,
         credential,
         onDelta: (delta) => {
           accumulatedDelta += delta;
@@ -233,6 +238,15 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
           {/* Model Switcher Dropdowns */}
           <div className="flex items-center space-x-2 text-xs">
+            <select
+              aria-label="Project scope"
+              value={selectedProjectId || ''}
+              onChange={(event) => setSelectedProjectId(event.target.value || null)}
+              className="hidden max-w-[150px] rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-slate-200 sm:block"
+            >
+              <option value="">Global context</option>
+              {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+            </select>
             {/* Provider Selector */}
             <select
               value={session.connectionId || session.providerId}

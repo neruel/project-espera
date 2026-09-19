@@ -8,6 +8,7 @@ import { createMemoryRoutes } from './routes/memory.js';
 import { createPersonaRoutes } from './routes/persona.js';
 import { createProviderRoutes } from './routes/providers.js';
 import { createInspectorRoutes } from './routes/inspector.js';
+import { createProjectRoutes } from './routes/projects.js';
 
 export function createApp(db: D1Database, registry?: ProviderRegistry, options?: { allowedOrigin?: string }) {
   const app = new Hono();
@@ -37,6 +38,7 @@ export function createApp(db: D1Database, registry?: ProviderRegistry, options?:
   app.route('/api/persona', createPersonaRoutes(db));
   app.route('/api/providers', createProviderRoutes(db, providerRegistry));
   app.route('/api/inspector', createInspectorRoutes(db));
+  app.route('/api/projects', createProjectRoutes(db));
 
   app.onError((err, c) => {
     console.error('[App Error]', err instanceof Error ? err.name : 'unknown_error');
