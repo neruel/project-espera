@@ -102,15 +102,15 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-[#0b0b0d] text-neutral-100 flex flex-col md:flex-row font-sans">
-      <Navbar
-        currentTab={currentTab}
-        onSelectTab={setCurrentTab}
-        pendingCount={pendingCount}
-        session={session}
-        onToggleInspector={() => openInspector()}
-        auth={auth}
-        onLoggedOut={() => setAuth({ ...auth, authenticated: false, user: null })}
-      />
+      {currentTab !== 'chat' && <Navbar
+          currentTab={currentTab}
+          onSelectTab={setCurrentTab}
+          pendingCount={pendingCount}
+          session={session}
+          onToggleInspector={() => openInspector()}
+          auth={auth}
+          onLoggedOut={() => setAuth({ ...auth, authenticated: false, user: null })}
+        />}
 
       <div className="flex-1 min-w-0 min-h-screen flex flex-col overflow-hidden">
         {currentTab === 'chat' && (
@@ -121,7 +121,11 @@ export function App() {
             onOpenInspector={(convId) => openInspector(convId)}
             onNavigateToMemory={() => setCurrentTab('memory')}
             onPendingCountChange={loadPendingCount}
+            pendingCount={pendingCount}
             projects={projects}
+            onNavigateTab={setCurrentTab}
+            auth={auth}
+            onLoggedOut={() => setAuth({ ...auth, authenticated: false, user: null })}
           />
         )}
 

@@ -6,7 +6,8 @@ import {
   Sparkles,
   Terminal,
   Brain,
-  ChevronDown,
+  FolderKanban,
+  Sliders,
   Loader2,
   Menu,
   X,
@@ -15,6 +16,8 @@ import type { Conversation, Message, Project } from '@espera/shared';
 import { api, type ProviderInfo } from '../../services/api.js';
 import type { SessionState } from '../../stores/session.js';
 import { useLanguage } from '../../i18n.js';
+import type { AuthState } from '../../services/api.js';
+import { AccountMenu } from '../Account/AccountMenu.js';
 
 interface ChatViewProps {
   session: SessionState;
@@ -23,7 +26,11 @@ interface ChatViewProps {
   onOpenInspector: (conversationId: string) => void;
   onNavigateToMemory: () => void;
   onPendingCountChange: () => void;
+  pendingCount: number;
   projects: Project[];
+  onNavigateTab: (tab: 'chat' | 'memory' | 'persona' | 'projects' | 'settings') => void;
+  auth: AuthState;
+  onLoggedOut: () => void;
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
@@ -33,7 +40,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onOpenInspector,
   onNavigateToMemory,
   onPendingCountChange,
+  pendingCount,
   projects,
+  onNavigateTab,
+  auth,
+  onLoggedOut,
 }) => {
   const { t } = useLanguage();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -210,25 +221,33 @@ export const ChatView: React.FC<ChatViewProps> = ({
         />
       )}
 
-      {/* Sidebar: Conversation List */}
+      {/* Unified ChatGPT-style workspace sidebar */}
       <aside
-        className={`w-72 bg-[#0d1422] border-r border-slate-800/80 flex flex-col z-20 transition-transform duration-200 md:translate-x-0 ${
+        className={`w-72 bg-[#101012] border-r border-neutral-800 flex flex-col z-20 transition-transform duration-200 md:translate-x-0 ${
           sidebarOpen ? 'translate-x-0 fixed inset-y-16 left-0' : '-translate-x-full md:relative md:translate-x-0'
         }`}
       >
-        <div className="p-3 border-b border-slate-800/80 flex items-center justify-between">
+        <div className="flex items-center gap-3 border-b border-neutral-800 px-4 py-4">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-sm font-bold text-black">E</div>
+          <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-white">Project Espera</div><div className="truncate text-[10px] text-neutral-500">{t('brand.tagline')}</div></div>
+          {sidebarOpen && <button type="button" aria-label="Close conversations" onClick={() => setSidebarOpen(false)} className="rounded-lg p-2 text-neutral-500 hover:bg-neutral-800 hover:text-white md:hidden"><X className="h-4 w-4" /></button>}
+        </div>
+        <div className="space-y-1 border-b border-neutral-800 p-3">
           <button
             onClick={handleCreateNewConversation}
-            className="flex-1 flex items-center justify-center space-x-2 px-3 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-semibold shadow-lg shadow-sky-950/30 transition"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-white px-3 py-2.5 text-sm font-semibold text-black transition hover:bg-neutral-200"
           >
             <Plus className="w-4 h-4" />
             <span>{t('chat.new')}</span>
           </button>
-          {sidebarOpen && <button type="button" aria-label="Close conversations" onClick={() => setSidebarOpen(false)} className="ml-2 rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white md:hidden"><X className="h-4 w-4" /></button>}
+          <button onClick={() => onNavigateTab('projects')} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-400 hover:bg-neutral-900 hover:text-white"><FolderKanban className="h-4 w-4" />{t('nav.projects')}</button>
+          <button onClick={() => onNavigateTab('memory')} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-400 hover:bg-neutral-900 hover:text-white"><Brain className="h-4 w-4" />{t('nav.memory')}{pendingCount > 0 && <span className="ml-auto rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-black">{pendingCount}</span>}</button>
+          <button onClick={() => onNavigateTab('persona')} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-400 hover:bg-neutral-900 hover:text-white"><Sparkles className="h-4 w-4" />{t('nav.persona')}</button>
+          <button onClick={() => onNavigateTab('settings')} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-400 hover:bg-neutral-900 hover:text-white"><Sliders className="h-4 w-4" />{t('nav.settings')}</button>
         </div>
 
-        <div className="px-3 pt-4 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{t('chat.conversations')}</div>
-        <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-1">
+        <div className="px-4 pt-4 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-600">{t('chat.conversations')}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3 space-y-1">
           {conversations.length === 0 ? (
             <div className="p-4 text-center text-xs text-slate-500">{t('chat.emptyConversations')}</div>
           ) : (
@@ -241,8 +260,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 }}
                 className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center space-x-2.5 text-xs transition ${
                   activeConvId === c.id
-                    ? 'bg-sky-500/10 text-sky-300 font-medium border border-sky-500/20'
-                    : 'text-slate-400 hover:bg-slate-800/70 hover:text-slate-200'
+                    ? 'bg-neutral-800 text-white font-medium'
+                    : 'text-neutral-400 hover:bg-neutral-900 hover:text-neutral-100'
                 }`}
               >
                 <MessageSquare className="w-3.5 h-3.5 shrink-0" />
@@ -251,6 +270,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             ))
           )}
         </div>
+        <div className="border-t border-neutral-800 p-3"><p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-600">Account</p><AccountMenu auth={auth} onLoggedOut={onLoggedOut} /></div>
       </aside>
 
       {/* Main Chat Thread */}
