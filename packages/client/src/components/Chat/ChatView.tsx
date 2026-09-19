@@ -43,6 +43,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [recentExtractedCount, setRecentExtractedCount] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [failedQuery, setFailedQuery] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -113,6 +115,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
     abortControllerRef.current = new AbortController();
     setStreamDelta('');
     setRecentExtractedCount(0);
+    setErrorMessage(null);
+    setFailedQuery(null);
 
     // Optimistic user message display
     const tempUserMsg: Message = {
@@ -147,6 +151,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         onDone: (data) => {
           setIsStreaming(false);
           setStreamDelta('');
+          setErrorMessage(null);
           if (!activeConvId) {
             setActiveConvId(data.conversationId);
             loadConversations();
@@ -160,12 +165,18 @@ export const ChatView: React.FC<ChatViewProps> = ({
         },
         onError: (err) => {
           setIsStreaming(false);
-          alert(`전송 오류: ${err}`);
+          setMessages((current) => current.filter((message) => message.id !== tempUserMsg.id));
+          setErrorMessage(err);
+          setFailedQuery(query);
         },
       });
     } catch (err: any) {
       setIsStreaming(false);
-      if (err?.name !== 'AbortError') alert(`오류 발생: ${err.message}`);
+      if (err?.name !== 'AbortError') {
+        setMessages((current) => current.filter((message) => message.id !== tempUserMsg.id));
+        setErrorMessage(err?.message || 'The request failed.');
+        setFailedQuery(query);
+      }
     } finally {
       abortControllerRef.current = null;
     }
@@ -175,6 +186,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
     abortControllerRef.current?.abort();
     setIsStreaming(false);
     setStreamDelta('');
+  }
+
+  function retryFailedMessage() {
+    if (!failedQuery) return;
+    setInput(failedQuery);
+    setErrorMessage(null);
+    setFailedQuery(null);
   }
 
   const currentProvider = providers.find((p) => p.id === session.connectionId) || providers.find((p) => p.id === session.providerId) || providers[0];
@@ -317,6 +335,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
             >
               기억 보관소에서 검토 &rarr;
             </button>
+          </div>
+        )}
+
+        {errorMessage && (
+          <div className="flex items-center justify-between gap-3 border-b border-rose-900/60 bg-rose-950/40 px-4 py-2 text-sm text-rose-200" role="alert">
+            <span>{errorMessage}</span>
+            {failedQuery && <button className="rounded-md border border-rose-700 px-2 py-1 text-xs font-semibold hover:bg-rose-900" onClick={retryFailedMessage}>Retry</button>}
           </div>
         )}
 
