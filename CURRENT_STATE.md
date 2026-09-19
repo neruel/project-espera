@@ -40,7 +40,7 @@ Espera is a provider-independent persistence layer for persona, user-controlled 
 ## Priority order
 
 1. Add explicit production auth and origin configuration.
-2. Add explicit production authentication before broad public use.
+2. Upgrade Wrangler 3 to Wrangler 4 in a compatibility-tested change.
 3. Upgrade Wrangler 3 to Wrangler 4 in a compatibility-tested change.
 
 ## Deployment verified
