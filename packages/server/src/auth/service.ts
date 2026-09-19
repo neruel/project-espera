@@ -102,7 +102,12 @@ export class AuthService {
     });
     const tokenData = await tokenResponse.json() as { access_token?: string; error?: string };
     if (!tokenResponse.ok || !tokenData.access_token) return new Response('GitHub token exchange failed', { status: 502 });
-    const headers = { Authorization: `Bearer ${tokenData.access_token}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+    const headers = {
+      Authorization: `Bearer ${tokenData.access_token}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'Project-Espera/1.0',
+    };
     const profileResponse = await fetch('https://api.github.com/user', { headers });
     if (!profileResponse.ok) return new Response('GitHub profile lookup failed', { status: 502 });
     const profile = await profileResponse.json() as { id: number; login: string; name?: string; email?: string | null; avatar_url?: string };
