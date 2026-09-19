@@ -9,6 +9,8 @@ import {
   FolderKanban,
 } from 'lucide-react';
 import type { SessionState } from '../stores/session.js';
+import type { AuthState } from '../services/api.js';
+import { AccountMenu } from './Account/AccountMenu.js';
 
 interface NavbarProps {
   currentTab: 'chat' | 'memory' | 'persona' | 'projects' | 'settings';
@@ -16,6 +18,8 @@ interface NavbarProps {
   pendingCount: number;
   session: SessionState;
   onToggleInspector: () => void;
+  auth: AuthState;
+  onLoggedOut: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -24,6 +28,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   pendingCount,
   session,
   onToggleInspector,
+  auth,
+  onLoggedOut,
 }) => {
   return (
     <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-30">
@@ -126,6 +132,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Terminal className="w-3.5 h-3.5 text-sky-400" />
             <span className="hidden lg:inline text-[11px]">Inspector</span>
           </button>
+          <AccountMenu auth={auth} onLoggedOut={onLoggedOut} />
         </div>
       </div>
     </header>

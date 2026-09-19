@@ -20,10 +20,13 @@ export async function createTestDatabase(options: { filePath?: string } = {}): P
     // The local adapter replays migrations against its persisted SQLite file.
     // D1 tracks migrations remotely, while this lightweight adapter does not;
     // skip the additive metadata migration once its columns are present.
-    if (file === '0003_provider_connection_metadata.sql') {
+    if (file === '0003_provider_connection_metadata.sql' || file === '0004_auth_sessions.sql') {
       const tableInfo = db.exec('PRAGMA table_info(provider_connections)');
       const columns = new Set((tableInfo[0]?.values || []).map((row: unknown[]) => String(row[1])));
-      if (columns.has('display_name') && columns.has('endpoint_url')) continue;
+      const userInfo = db.exec('PRAGMA table_info(users)');
+      const userColumns = new Set((userInfo[0]?.values || []).map((row: unknown[]) => String(row[1])));
+      if (file === '0003_provider_connection_metadata.sql' && columns.has('display_name') && columns.has('endpoint_url')) continue;
+      if (file === '0004_auth_sessions.sql' && userColumns.has('provider_subject')) continue;
     }
     db.exec(fs.readFileSync(path.join(migrationDir, file), 'utf8'));
   }

@@ -9,19 +9,38 @@ import { createPersonaRoutes } from './routes/persona.js';
 import { createProviderRoutes } from './routes/providers.js';
 import { createInspectorRoutes } from './routes/inspector.js';
 import { createProjectRoutes } from './routes/projects.js';
+import { AuthService, type AuthConfig } from './auth/service.js';
+import { createAuthRoutes } from './routes/auth.js';
 
-export function createApp(db: D1Database, registry?: ProviderRegistry, options?: { allowedOrigin?: string }) {
+export function createApp(db: D1Database, registry?: ProviderRegistry, options?: { allowedOrigin?: string } & AuthConfig) {
   const app = new Hono();
   const providerRegistry = registry ?? new ProviderRegistry();
+  const auth = new AuthService(db, options);
 
   app.use(
     '*',
     cors({
       origin: options?.allowedOrigin || '*',
+      credentials: true,
       allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowHeaders: ['Content-Type', 'Authorization', 'X-Espera-Credential'],
     })
   );
+
+  app.use('/api/*', async (c, next) => {
+    const pathname = new URL(c.req.url).pathname;
+    if (pathname === '/api/health' || pathname.startsWith('/api/auth/')) return next();
+    const user = await auth.currentUser(c.req.raw);
+    if (user) {
+      (c as any).set('userId', user.id);
+      (c as any).set('user', user);
+    } else if (auth.mode === 'required') {
+      return c.json({ error: 'authentication_required' }, 401);
+    } else if (auth.mode !== 'disabled') {
+      (c as any).set('userId', 'user_default');
+    }
+    return next();
+  });
 
   app.get('/api/health', (c) => {
     return c.json({
@@ -31,6 +50,8 @@ export function createApp(db: D1Database, registry?: ProviderRegistry, options?:
       timestamp: new Date().toISOString(),
     });
   });
+
+  app.route('/api/auth', createAuthRoutes(db, options || {}));
 
   app.route('/api/chat', createChatRoutes(db, providerRegistry));
   app.route('/api/conversations', createConversationRoutes(db));

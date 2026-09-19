@@ -9,15 +9,16 @@ import {
 import type { D1Database } from '../db/d1-interface.js';
 import { MemoryRepository } from '../db/repositories/memory.repo.js';
 import { UserRepository } from '../db/repositories/user.repo.js';
+import { requestUserId } from '../auth/service.js';
 
 export function createMemoryRoutes(db: D1Database) {
   const router = new Hono();
   const memoryRepo = new MemoryRepository(db);
   const userRepo = new UserRepository(db);
-  const userId = 'user_default';
 
   // GET /api/memories (list with filters)
   router.get('/', async (c) => {
+    const userId = requestUserId(c);
     const status = c.req.query('status') as any;
     const type = c.req.query('type') as any;
     const projectId = c.req.query('projectId') ?? null;
@@ -33,6 +34,7 @@ export function createMemoryRoutes(db: D1Database) {
 
   // POST /api/memories (create manual memory directly as active)
   router.post('/', async (c) => {
+    const userId = requestUserId(c);
     await userRepo.ensureUser(userId, 'Espera User');
     const raw = await c.req.json();
     const parsed = CreateMemoryManualSchema.safeParse(raw);
@@ -59,6 +61,7 @@ export function createMemoryRoutes(db: D1Database) {
 
   // GET /api/memories/:id (details with revisions and evidence)
   router.get('/:id', async (c) => {
+    const userId = requestUserId(c);
     const id = c.req.param('id');
     const memory = await memoryRepo.getMemoryById(id);
     if (!memory) {
@@ -73,6 +76,7 @@ export function createMemoryRoutes(db: D1Database) {
 
   // POST /api/memories/:id/approve
   router.post('/:id/approve', async (c) => {
+    const userId = requestUserId(c);
     const id = c.req.param('id');
     const raw = await c.req.json().catch(() => ({}));
     const parsed = ApproveMemorySchema.safeParse(raw);
@@ -88,6 +92,7 @@ export function createMemoryRoutes(db: D1Database) {
 
   // POST /api/memories/:id/edit-and-approve
   router.post('/:id/edit-and-approve', async (c) => {
+    const userId = requestUserId(c);
     const id = c.req.param('id');
     const raw = await c.req.json();
     const parsed = EditAndApproveMemorySchema.safeParse(raw);
@@ -114,6 +119,7 @@ export function createMemoryRoutes(db: D1Database) {
 
   // POST /api/memories/:id/reject
   router.post('/:id/reject', async (c) => {
+    const userId = requestUserId(c);
     const id = c.req.param('id');
     const raw = await c.req.json().catch(() => ({}));
     const parsed = RejectMemorySchema.safeParse(raw);
@@ -129,6 +135,7 @@ export function createMemoryRoutes(db: D1Database) {
 
   // DELETE /api/memories/:id
   router.delete('/:id', async (c) => {
+    const userId = requestUserId(c);
     const id = c.req.param('id');
     const mode = c.req.query('mode') || 'soft';
 

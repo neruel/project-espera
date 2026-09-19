@@ -17,15 +17,15 @@ export class ConversationRepository {
     return (await this.getConversation(id))!;
   }
 
-  async getConversation(id: string): Promise<Conversation | null> {
+  async getConversation(id: string, userId?: string): Promise<Conversation | null> {
     const row = await this.db
       .prepare(
         `SELECT id, user_id as userId, project_id as projectId, title,
                 created_at as createdAt, updated_at as updatedAt
          FROM conversations
-         WHERE id = ?`
+         WHERE id = ?${userId ? ' AND user_id = ?' : ''}`
       )
-      .bind(id)
+      .bind(...(userId ? [id, userId] : [id]))
       .first<Conversation>();
     return row ?? null;
   }

@@ -13,6 +13,7 @@ import { MemoryLifecycleCoordinator } from '../memory/lifecycle.js';
 import { MemoryExtractor } from '../memory/extractor.js';
 import { MemoryDeduplicator } from '../memory/deduplicator.js';
 import { ProjectRepository } from '../db/repositories/project.repo.js';
+import { requestUserId } from '../auth/service.js';
 
 export function createChatRoutes(db: D1Database, registry: ProviderRegistry) {
   const router = new Hono();
@@ -50,7 +51,7 @@ export function createChatRoutes(db: D1Database, registry: ProviderRegistry) {
     }
 
     // Ensure default user and persona
-    const user = await userRepo.ensureUser('user_default', 'Espera User');
+    const user = await userRepo.ensureUser(requestUserId(c), 'Espera User');
     const persona = await personaRepo.ensureDefaultPersona(user.id);
 
     // Ensure conversation

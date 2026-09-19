@@ -27,19 +27,20 @@ export class ContextRunRepository {
       .run();
   }
 
-  async getLatestRun(conversationId: string): Promise<ContextRun | null> {
+  async getLatestRun(conversationId: string, userId?: string): Promise<ContextRun | null> {
     const row = await this.db
       .prepare(
-        `SELECT id, conversation_id as conversationId, message_id as messageId,
-                provider_id as providerId, model_id as modelId, persona_version as personaVersion,
-                selected_memory_ids_json, selection_reasons_json, assembled_prompt as assembledPrompt,
-                token_estimate as tokenEstimate, created_at as createdAt
-         FROM context_runs
-         WHERE conversation_id = ?
-         ORDER BY created_at DESC
+        `SELECT cr.id, cr.conversation_id as conversationId, cr.message_id as messageId,
+                cr.provider_id as providerId, cr.model_id as modelId, cr.persona_version as personaVersion,
+                cr.selected_memory_ids_json, cr.selection_reasons_json, cr.assembled_prompt as assembledPrompt,
+                cr.token_estimate as tokenEstimate, cr.created_at as createdAt
+         FROM context_runs cr
+         JOIN conversations c ON c.id = cr.conversation_id
+         WHERE cr.conversation_id = ?${userId ? ' AND c.user_id = ?' : ''}
+         ORDER BY cr.created_at DESC
          LIMIT 1`
       )
-      .bind(conversationId)
+      .bind(...(userId ? [conversationId, userId] : [conversationId]))
       .first<any>();
 
     if (!row) return null;

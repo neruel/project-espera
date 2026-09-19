@@ -3,19 +3,21 @@ import type { Project } from '@espera/shared';
 import type { D1Database } from '../db/d1-interface.js';
 import { ProjectRepository } from '../db/repositories/project.repo.js';
 import { UserRepository } from '../db/repositories/user.repo.js';
+import { requestUserId } from '../auth/service.js';
 
 export function createProjectRoutes(db: D1Database) {
   const router = new Hono();
-  const userId = 'user_default';
   const users = new UserRepository(db);
   const projects = new ProjectRepository(db);
 
   router.get('/', async (c) => {
+    const userId = requestUserId(c);
     await users.ensureUser(userId, 'Espera User');
     return c.json({ projects: await projects.list(userId) });
   });
 
   router.post('/', async (c) => {
+    const userId = requestUserId(c);
     const body: any = await c.req.json().catch(() => ({}));
     const name = String(body.name || '').trim();
     const description = String(body.description || '').trim();
@@ -25,6 +27,7 @@ export function createProjectRoutes(db: D1Database) {
   });
 
   router.put('/:id', async (c) => {
+    const userId = requestUserId(c);
     const body: any = await c.req.json().catch(() => ({}));
     const name = String(body.name || '').trim();
     const description = String(body.description || '').trim();
@@ -36,6 +39,7 @@ export function createProjectRoutes(db: D1Database) {
   });
 
   router.delete('/:id', async (c) => {
+    const userId = requestUserId(c);
     await users.ensureUser(userId, 'Espera User');
     return await projects.remove(c.req.param('id'), userId) ? c.body(null, 204) : c.json({ error: 'Project not found' }, 404);
   });

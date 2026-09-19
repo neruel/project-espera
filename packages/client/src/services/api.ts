@@ -14,6 +14,24 @@ import type {
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
+async function request(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const response = await fetch(input, { ...init, credentials: 'include' });
+  if (response.status === 401) window.dispatchEvent(new CustomEvent('espera:auth-required'));
+  return response;
+}
+
+export interface AuthState {
+  authenticated: boolean;
+  required: boolean;
+  configured: boolean;
+  user: {
+    id: string;
+    name: string;
+    email?: string;
+    avatarUrl?: string | null;
+  } | null;
+}
+
 export interface ProviderInfo {
   id: string;
   name: string;
@@ -48,33 +66,49 @@ export interface StreamChatParams {
 }
 
 export const api = {
+  async getAuthState(): Promise<AuthState> {
+    const res = await request(`${BASE_URL}/api/auth/me`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Authentication status could not be loaded');
+    return data;
+  },
+
+  loginWithGitHub(): void {
+    window.location.assign(`${BASE_URL}/api/auth/github`);
+  },
+
+  async logout(): Promise<void> {
+    const res = await request(`${BASE_URL}/api/auth/logout`, { method: 'POST' });
+    if (!res.ok) throw new Error('Could not sign out');
+  },
+
   async getProjects(): Promise<Project[]> {
-    const res = await fetch(`${BASE_URL}/api/projects`);
+    const res = await request(`${BASE_URL}/api/projects`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Projects could not be loaded');
     return data.projects || [];
   },
 
   async createProject(name: string, description: string): Promise<Project> {
-    const res = await fetch(`${BASE_URL}/api/projects`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, description }) });
+    const res = await request(`${BASE_URL}/api/projects`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, description }) });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Project could not be created');
     return data.project;
   },
 
   async deleteProject(id: string): Promise<void> {
-    const res = await fetch(`${BASE_URL}/api/projects/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    const res = await request(`${BASE_URL}/api/projects/${encodeURIComponent(id)}`, { method: 'DELETE' });
     if (!res.ok) throw new Error('Project could not be deleted');
   },
   // Conversations
   async getConversations(): Promise<Conversation[]> {
-    const res = await fetch(`${BASE_URL}/api/conversations`);
+    const res = await request(`${BASE_URL}/api/conversations`);
     const data = await res.json();
     return data.conversations || [];
   },
 
   async createConversation(title?: string, projectId?: string | null): Promise<Conversation> {
-    const res = await fetch(`${BASE_URL}/api/conversations`, {
+    const res = await request(`${BASE_URL}/api/conversations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: title || 'New Conversation', projectId }),
@@ -84,7 +118,7 @@ export const api = {
   },
 
   async getMessages(conversationId: string): Promise<Message[]> {
-    const res = await fetch(`${BASE_URL}/api/conversations/${conversationId}/messages`);
+    const res = await request(`${BASE_URL}/api/conversations/${conversationId}/messages`);
     const data = await res.json();
     return data.messages || [];
   },
@@ -99,7 +133,7 @@ export const api = {
       headers['X-Espera-Credential'] = JSON.stringify(params.credential);
     }
 
-    const res = await fetch(`${BASE_URL}/api/chat`, {
+    const res = await request(`${BASE_URL}/api/chat`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -169,18 +203,18 @@ export const api = {
     if (status) query.set('status', status);
     if (type) query.set('type', type);
 
-    const res = await fetch(`${BASE_URL}/api/memories?${query.toString()}`);
+    const res = await request(`${BASE_URL}/api/memories?${query.toString()}`);
     const data = await res.json();
     return data.memories || [];
   },
 
   async getMemoryDetails(id: string): Promise<{ memory: Memory; revisions: MemoryRevision[]; evidence: MemoryEvidence[] }> {
-    const res = await fetch(`${BASE_URL}/api/memories/${id}`);
+    const res = await request(`${BASE_URL}/api/memories/${id}`);
     return await res.json();
   },
 
   async approveMemory(id: string, changeReason?: string): Promise<Memory> {
-    const res = await fetch(`${BASE_URL}/api/memories/${id}/approve`, {
+    const res = await request(`${BASE_URL}/api/memories/${id}/approve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ changeReason: changeReason || 'Approved by user' }),
@@ -193,7 +227,7 @@ export const api = {
     id: string,
     update: { canonicalText: string; importance?: number; type?: string; changeReason: string }
   ): Promise<Memory> {
-    const res = await fetch(`${BASE_URL}/api/memories/${id}/edit-and-approve`, {
+    const res = await request(`${BASE_URL}/api/memories/${id}/edit-and-approve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'edit_and_approve', ...update }),
@@ -203,7 +237,7 @@ export const api = {
   },
 
   async rejectMemory(id: string, reason?: string): Promise<Memory> {
-    const res = await fetch(`${BASE_URL}/api/memories/${id}/reject`, {
+    const res = await request(`${BASE_URL}/api/memories/${id}/reject`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason: reason || 'Rejected by user' }),
@@ -213,7 +247,7 @@ export const api = {
   },
 
   async deleteMemory(id: string, mode: 'soft' | 'hard' = 'soft'): Promise<void> {
-    await fetch(`${BASE_URL}/api/memories/${id}?mode=${mode}`, {
+    await request(`${BASE_URL}/api/memories/${id}?mode=${mode}`, {
       method: 'DELETE',
     });
   },
@@ -226,7 +260,7 @@ export const api = {
     importance: number;
     sensitivity: string;
   }): Promise<Memory> {
-    const res = await fetch(`${BASE_URL}/api/memories`, {
+    const res = await request(`${BASE_URL}/api/memories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -237,13 +271,13 @@ export const api = {
 
   // Persona
   async getPersona(): Promise<Persona> {
-    const res = await fetch(`${BASE_URL}/api/persona`);
+    const res = await request(`${BASE_URL}/api/persona`);
     const data = await res.json();
     return data.persona;
   },
 
   async getPersonaRevisions(): Promise<PersonaRevision[]> {
-    const res = await fetch(`${BASE_URL}/api/persona/revisions`);
+    const res = await request(`${BASE_URL}/api/persona/revisions`);
     const data = await res.json();
     return data.revisions || [];
   },
@@ -255,7 +289,7 @@ export const api = {
     principles: string[];
     changeReason: string;
   }): Promise<Persona> {
-    const res = await fetch(`${BASE_URL}/api/persona`, {
+    const res = await request(`${BASE_URL}/api/persona`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -266,18 +300,18 @@ export const api = {
 
   // Providers
   async getProviders(): Promise<ProviderInfo[]> {
-    const res = await fetch(`${BASE_URL}/api/providers`);
+    const res = await request(`${BASE_URL}/api/providers`);
     const data = await res.json();
     return data.providers || [];
   },
 
   async listModels(providerId: string, apiKey: string, endpointUrl?: string): Promise<ModelDescriptor[]> {
-    const res = await fetch(`${BASE_URL}/api/providers/models`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({providerId,credential:{apiKey,endpointUrl}}) });
+    const res = await request(`${BASE_URL}/api/providers/models`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({providerId,credential:{apiKey,endpointUrl}}) });
     const data=await res.json(); if(!res.ok) throw new Error(data.error?.message || '모델 목록 조회 실패'); return data.models || [];
   },
 
   async validateCredential(providerId: string, apiKey: string, endpointUrl?: string): Promise<boolean> {
-    const res = await fetch(`${BASE_URL}/api/providers/validate`, {
+    const res = await request(`${BASE_URL}/api/providers/validate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -290,7 +324,7 @@ export const api = {
   },
 
   async getProviderConnections(): Promise<PersistedProviderConnection[]> {
-    const res = await fetch(`${BASE_URL}/api/providers/connections`);
+    const res = await request(`${BASE_URL}/api/providers/connections`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Provider connections could not be loaded');
     return data.connections || [];
@@ -303,7 +337,7 @@ export const api = {
     baseUrl?: string;
     models: ModelDescriptor[];
   }): Promise<PersistedProviderConnection> {
-    const res = await fetch(`${BASE_URL}/api/providers/connections`, {
+    const res = await request(`${BASE_URL}/api/providers/connections`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(connection),
@@ -314,7 +348,7 @@ export const api = {
   },
 
   async deleteProviderConnection(id: string): Promise<void> {
-    const res = await fetch(`${BASE_URL}/api/providers/connections/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    const res = await request(`${BASE_URL}/api/providers/connections/${encodeURIComponent(id)}`, { method: 'DELETE' });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.error || 'Provider connection could not be deleted');
@@ -323,7 +357,7 @@ export const api = {
 
   // Developer Context Inspector
   async getContextRun(conversationId: string): Promise<ContextRun | null> {
-    const res = await fetch(`${BASE_URL}/api/inspector/${conversationId}`);
+    const res = await request(`${BASE_URL}/api/inspector/${conversationId}`);
     const data = await res.json();
     return data.contextRun || null;
   },

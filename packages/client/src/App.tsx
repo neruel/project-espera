@@ -12,9 +12,12 @@ import {
   type SessionState,
 } from './stores/session.js';
 import { api, type ProviderInfo } from './services/api.js';
+import type { AuthState } from './services/api.js';
+import { LoginView } from './components/Auth/LoginView.js';
 import type { Project } from '@espera/shared';
 
 export function App() {
+  const [auth, setAuth] = useState<AuthState | null>(null);
   const [currentTab, setCurrentTab] = useState<'chat' | 'memory' | 'persona' | 'projects' | 'settings'>('chat');
   const [session, setSession] = useState<SessionState>(getInitialSession);
   const [providers, setProviders] = useState<ProviderInfo[]>([
@@ -36,11 +39,19 @@ export function App() {
   }, [session]);
 
   useEffect(() => {
+    api.getAuthState().then(setAuth).catch(() => setAuth({ authenticated: false, required: false, configured: false, user: null }));
+    const onAuthRequired = () => setAuth((current) => current ? { ...current, authenticated: false, user: null } : current);
+    window.addEventListener('espera:auth-required', onAuthRequired);
+    return () => window.removeEventListener('espera:auth-required', onAuthRequired);
+  }, []);
+
+  useEffect(() => {
+    if (!auth || (auth.required && !auth.authenticated)) return;
     loadProviders();
     loadPendingCount();
     loadConnections();
     loadProjects();
-  }, []);
+  }, [auth?.authenticated, auth?.required]);
 
   async function loadProviders() {
     try {
@@ -86,6 +97,9 @@ export function App() {
     });
   }
 
+  if (!auth) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-500">Loading Espera…</div>;
+  if (auth.required && !auth.authenticated) return <LoginView auth={auth} />;
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       <Navbar
@@ -94,6 +108,8 @@ export function App() {
         pendingCount={pendingCount}
         session={session}
         onToggleInspector={() => openInspector()}
+        auth={auth}
+        onLoggedOut={() => setAuth({ ...auth, authenticated: false, user: null })}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden">
