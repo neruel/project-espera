@@ -18,6 +18,14 @@ export async function createTestDatabase(options: { filePath?: string } = {}): P
     'packages/server/migrations'
   );
   for (const file of fs.readdirSync(migrationDir).filter((x) => x.endsWith('.sql')).sort()) {
+    // The local adapter replays migrations against its persisted SQLite file.
+    // D1 tracks migrations remotely, while this lightweight adapter does not;
+    // skip the additive metadata migration once its columns are present.
+    if (file === '0003_provider_connection_metadata.sql') {
+      const tableInfo = db.exec('PRAGMA table_info(provider_connections)');
+      const columns = new Set((tableInfo[0]?.values || []).map((row: unknown[]) => String(row[1])));
+      if (columns.has('display_name') && columns.has('endpoint_url')) continue;
+    }
     db.exec(fs.readFileSync(path.join(migrationDir, file), 'utf8'));
   }
 

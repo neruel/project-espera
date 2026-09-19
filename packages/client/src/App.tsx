@@ -35,6 +35,7 @@ export function App() {
   useEffect(() => {
     loadProviders();
     loadPendingCount();
+    loadConnections();
   }, []);
 
   async function loadProviders() {
@@ -54,6 +55,15 @@ export function App() {
       setPendingCount(pendings.length);
     } catch (err) {
       console.error('Failed to load pending memory count', err);
+    }
+  }
+
+  async function loadConnections() {
+    try {
+      const connections = await api.getProviderConnections();
+      setSession((previous) => ({ ...previous, connections }));
+    } catch (err) {
+      console.error('Failed to load provider connections', err);
     }
   }
 

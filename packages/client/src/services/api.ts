@@ -21,6 +21,18 @@ export interface ProviderInfo {
   defaultBaseUrl?: string;
 }
 
+export interface PersistedProviderConnection {
+  id: string;
+  name: string;
+  providerId: string;
+  baseUrl?: string;
+  status: 'active' | 'inactive' | 'error';
+  lastTestedAt?: string | null;
+  models: ModelDescriptor[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface StreamChatParams {
   conversationId?: string;
   content: string;
@@ -254,6 +266,38 @@ export const api = {
     });
     const data = await res.json();
     return Boolean(data.isValid);
+  },
+
+  async getProviderConnections(): Promise<PersistedProviderConnection[]> {
+    const res = await fetch(`${BASE_URL}/api/providers/connections`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Provider connections could not be loaded');
+    return data.connections || [];
+  },
+
+  async saveProviderConnection(connection: {
+    id?: string;
+    name: string;
+    providerId: string;
+    baseUrl?: string;
+    models: ModelDescriptor[];
+  }): Promise<PersistedProviderConnection> {
+    const res = await fetch(`${BASE_URL}/api/providers/connections`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(connection),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Provider connection could not be saved');
+    return data.connection;
+  },
+
+  async deleteProviderConnection(id: string): Promise<void> {
+    const res = await fetch(`${BASE_URL}/api/providers/connections/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Provider connection could not be deleted');
+    }
   },
 
   // Developer Context Inspector

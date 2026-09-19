@@ -35,7 +35,7 @@ export function createApp(db: D1Database, registry?: ProviderRegistry) {
   app.route('/api/conversations', createConversationRoutes(db));
   app.route('/api/memories', createMemoryRoutes(db));
   app.route('/api/persona', createPersonaRoutes(db));
-  app.route('/api/providers', createProviderRoutes(providerRegistry));
+  app.route('/api/providers', createProviderRoutes(db, providerRegistry));
   app.route('/api/inspector', createInspectorRoutes(db));
 
   app.onError((err, c) => {
