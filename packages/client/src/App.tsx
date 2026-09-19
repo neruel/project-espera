@@ -46,6 +46,12 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    const handleActiveConversation = (event: Event) => updateSession({ selectedConversationId: (event as CustomEvent<string>).detail });
+    window.addEventListener('espera:active-conversation-changed', handleActiveConversation);
+    return () => window.removeEventListener('espera:active-conversation-changed', handleActiveConversation);
+  }, []);
+
+  useEffect(() => {
     if (!auth || (auth.required && !auth.authenticated)) return;
     loadProviders();
     loadPendingCount();

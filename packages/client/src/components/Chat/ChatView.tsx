@@ -80,6 +80,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
     window.dispatchEvent(new CustomEvent('espera:conversations-updated', { detail: { conversations, activeId: activeConvId } }));
   }, [conversations, activeConvId]);
 
+  useEffect(() => {
+    if (activeConvId) window.dispatchEvent(new CustomEvent('espera:active-conversation-changed', { detail: activeConvId }));
+  }, [activeConvId]);
+
   // Load messages when active conversation changes
   useEffect(() => {
     if (activeConvId) {
