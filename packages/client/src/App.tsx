@@ -101,7 +101,7 @@ export function App() {
   if (auth.required && !auth.authenticated) return <LoginView auth={auth} />;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#0b0b0d] text-neutral-100 flex flex-col md:flex-row font-sans">
       <Navbar
         currentTab={currentTab}
         onSelectTab={setCurrentTab}
@@ -112,7 +112,7 @@ export function App() {
         onLoggedOut={() => setAuth({ ...auth, authenticated: false, user: null })}
       />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 min-w-0 min-h-screen flex flex-col overflow-hidden">
         {currentTab === 'chat' && (
           <ChatView
             session={session}

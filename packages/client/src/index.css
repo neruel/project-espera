@@ -33,3 +33,15 @@ body {
 }
 .field { display:block; width:100%; margin-top:.35rem; background:#020617; border:1px solid #334155; border-radius:.65rem; padding:.6rem .75rem; color:#f1f5f9; }
 .btn { display:inline-flex; gap:.4rem; align-items:center; padding:.55rem .8rem; border-radius:.65rem; background:#1e293b; font-size:.75rem; font-weight:600; }
+
+/* Espera uses a neutral, near-black workspace surface rather than a blue dashboard palette. */
+.bg-slate-950 { background-color: #0b0b0d !important; }
+.bg-slate-900 { background-color: #151517 !important; }
+.bg-slate-800 { background-color: #202023 !important; }
+.border-slate-800, .border-slate-800\/80 { border-color: #29292e !important; }
+.border-slate-700, .border-slate-700\/80 { border-color: #3a3a40 !important; }
+.text-slate-100 { color: #f2f2f3 !important; }
+.text-slate-200 { color: #dedee1 !important; }
+.text-slate-300 { color: #bdbdc3 !important; }
+.text-slate-400 { color: #96969e !important; }
+.text-slate-500 { color: #707078 !important; }

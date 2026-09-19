@@ -6,7 +6,7 @@ test('opens the workspace and manages a project scope', async ({ page }) => {
   page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
 
   await page.goto('/');
-  await expect(page.getByText('Project Espera', { exact: true })).toBeVisible();
+  await expect(page.getByText('Project Espera', { exact: true }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Projects' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Projects' }).click();
@@ -37,7 +37,7 @@ test('keeps the chat workspace usable on a mobile viewport', async ({ page }) =>
   await page.addInitScript(() => localStorage.setItem('espera_language', 'en'));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await expect(page.getByText('Project Espera', { exact: true })).toBeVisible();
+  await expect(page.getByText('Project Espera', { exact: true }).last()).toBeVisible();
   await expect(page.getByLabel('Open conversations')).toBeVisible();
   await page.getByLabel('Open conversations').click();
   await expect(page.getByText('Conversations', { exact: true }).first()).toBeVisible();

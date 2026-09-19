@@ -201,7 +201,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const availableModels = currentProvider?.models || [];
 
   return (
-    <div className="flex-1 flex overflow-hidden h-[calc(100vh-4rem)] relative bg-[#090d16]">
+    <div className="flex-1 min-h-0 flex overflow-hidden h-full relative bg-[#0b0b0d]">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
