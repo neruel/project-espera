@@ -26,7 +26,7 @@ Espera is a provider-independent persistence layer for persona, user-controlled 
 - Authentication is intentionally a single local default user. A production deployment needs an explicit auth boundary before exposing private data publicly.
 - Projects are represented in the schema but do not yet have a complete UI/API workflow.
 - Conversation retry/cancel UX and automated browser E2E coverage are incomplete.
-- A dedicated `project-espera-db` D1 has now been created and wired into `packages/server/wrangler.toml`; migrations and Worker deployment remain to be run.
+- A dedicated `project-espera-db` D1 has been created, wired into `packages/server/wrangler.toml`, migrated, and used by the deployed Worker.
 - CORS currently permits all origins for local development; production must set an explicit frontend origin.
 - DNS rebinding protection for arbitrary custom hosts cannot be fully enforced by the current Worker-only URL parser; production should prefer official endpoints or an explicit allowlist.
 - Wrangler 3 is installed locally while Wrangler 4 is available; upgrading is a separate compatibility change.
@@ -42,4 +42,11 @@ Espera is a provider-independent persistence layer for persona, user-controlled 
 1. Add provider connection metadata CRUD and model catalog persistence.
 2. Add explicit production auth and origin configuration.
 3. Add Project API/UI and browser-level smoke tests.
-4. Confirm dedicated Cloudflare resources, then deploy and run production smoke tests.
+4. Add explicit production auth and browser-level E2E coverage before broad public use.
+
+## Deployment verified
+
+- API Worker: `project-espera-api` at `https://project-espera-api.hfainvididual.workers.dev`
+- Frontend Pages project: `project-espera-web` at `https://project-espera-web.pages.dev`
+- D1: `project-espera-db` (migrations 0001 and 0002 applied)
+- Production smoke path: health → providers → persona → conversation → Mock chat → pending memory → frontend load
