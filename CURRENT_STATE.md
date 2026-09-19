@@ -29,7 +29,7 @@ Espera is a provider-independent persistence layer for persona, user-controlled 
 - A dedicated `project-espera-db` D1 has been created, wired into `packages/server/wrangler.toml`, migrated, and used by the deployed Worker.
 - Production CORS is restricted to `https://project-espera-web.pages.dev`; local development and tests retain wildcard CORS by omission.
 - DNS rebinding protection for arbitrary custom hosts cannot be fully enforced by the current Worker-only URL parser; production should prefer official endpoints or an explicit allowlist.
-- Wrangler 3 is installed locally while Wrangler 4 is available; upgrading is a separate compatibility change.
+- Wrangler 4.135.0 is installed and the Worker has been redeployed successfully.
 
 ## Security findings addressed in this pass
 
@@ -39,9 +39,7 @@ Espera is a provider-independent persistence layer for persona, user-controlled 
 
 ## Priority order
 
-1. Add explicit production auth and origin configuration.
-2. Upgrade Wrangler 3 to Wrangler 4 in a compatibility-tested change.
-3. Upgrade Wrangler 3 to Wrangler 4 in a compatibility-tested change.
+1. Add explicit production authentication before broad public use.
 
 ## Deployment verified
 
