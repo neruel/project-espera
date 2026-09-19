@@ -11,3 +11,6 @@ migrations_dir = "migrations"
 
 [vars]
 ESPERA_ALLOWED_ORIGIN = "https://project-espera-web.pages.dev"
+ESPERA_FRONTEND_ORIGIN = "https://project-espera-web.pages.dev"
+ESPERA_AUTH_MODE = "required"
+GITHUB_OAUTH_REDIRECT_URI = "https://project-espera-api.hfainvididual.workers.dev/api/auth/github/callback"
