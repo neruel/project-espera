@@ -44,6 +44,7 @@ export interface StreamChatParams {
   onDelta: (delta: string) => void;
   onDone: (data: { conversationId: string; messageId: string; contextRunId: string; newPendingMemoriesCount: number }) => void;
   onError: (error: string) => void;
+  signal?: AbortSignal;
 }
 
 export const api = {
@@ -109,6 +110,7 @@ export const api = {
         projectId: params.projectId,
         stream: true,
       }),
+      signal: params.signal,
     });
 
     if (!res.ok || !res.body) {

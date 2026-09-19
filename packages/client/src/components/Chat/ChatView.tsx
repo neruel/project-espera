@@ -45,6 +45,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Load conversations on mount
   useEffect(() => {
@@ -109,6 +110,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
     setInput('');
     setIsStreaming(true);
+    abortControllerRef.current = new AbortController();
     setStreamDelta('');
     setRecentExtractedCount(0);
 
@@ -137,6 +139,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         modelId: session.modelId,
         projectId: selectedProjectId,
         credential,
+        signal: abortControllerRef.current.signal,
         onDelta: (delta) => {
           accumulatedDelta += delta;
           setStreamDelta(accumulatedDelta);
@@ -162,8 +165,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
       });
     } catch (err: any) {
       setIsStreaming(false);
-      alert(`오류 발생: ${err.message}`);
+      if (err?.name !== 'AbortError') alert(`오류 발생: ${err.message}`);
+    } finally {
+      abortControllerRef.current = null;
     }
+  }
+
+  function stopGeneration() {
+    abortControllerRef.current?.abort();
+    setIsStreaming(false);
+    setStreamDelta('');
   }
 
   const currentProvider = providers.find((p) => p.id === session.connectionId) || providers.find((p) => p.id === session.providerId) || providers[0];
@@ -377,7 +388,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
             />
             <button
               type="submit"
-              disabled={isStreaming || !input.trim()}
+              disabled={!isStreaming && !input.trim()}
+              onClick={isStreaming ? stopGeneration : undefined}
+              aria-label={isStreaming ? 'Stop generation' : 'Send message'}
               className="p-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:hover:bg-sky-600 text-white transition shadow-sm"
             >
               {isStreaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

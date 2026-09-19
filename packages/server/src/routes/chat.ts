@@ -107,6 +107,7 @@ export function createChatRoutes(db: D1Database, registry: ProviderRegistry) {
             modelId: body.modelId,
             messages: composition.messages,
             credential,
+            signal: c.req.raw.signal,
           });
 
           for await (const chunk of streamIterable) {
