@@ -57,9 +57,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, pending
 
   const sidebar = (mobile = false) => (
     <aside className={`${mobile ? 'fixed inset-y-0 left-0 z-50 w-72 shadow-2xl shadow-black/60' : 'hidden md:flex w-64 shrink-0'} flex-col border-r border-neutral-800 bg-[#101012] p-3`}>
-      <div className="flex items-center gap-3 px-2 py-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-lg font-bold text-black">E</div>
-        <div className="min-w-0"><div className="truncate text-sm font-semibold text-white">Project Espera</div><div className="truncate text-[11px] text-neutral-500">{t('brand.tagline')}</div></div>
+      <div className="flex items-center gap-2 px-2 py-3">
+        <Sparkles className="h-5 w-5 shrink-0 text-neutral-200" aria-hidden="true" />
+        <div className="min-w-0 truncate text-sm font-semibold text-white">Project Espera</div>
         {mobile && <button aria-label="Close navigation" onClick={() => setMobileOpen(false)} className="ml-auto rounded-lg p-2 text-neutral-500 hover:bg-neutral-800 hover:text-white"><X className="h-4 w-4" /></button>}
       </div>
       <div className="my-3 border-t border-neutral-800" />
@@ -76,7 +76,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, pending
     {sidebar()}
     <div className="flex h-14 shrink-0 items-center border-b border-neutral-800 bg-[#101012] px-3 md:hidden">
       <button aria-label="Open navigation" onClick={() => setMobileOpen(true)} className="rounded-lg p-2 text-neutral-400 hover:bg-neutral-800 hover:text-white"><Menu className="h-5 w-5" /></button>
-      <div className="ml-2 flex items-center gap-2"><div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-sm font-bold text-black">E</div><span className="text-sm font-semibold text-white">Project Espera</span></div>
+      <div className="ml-2 flex items-center gap-2"><Sparkles className="h-4 w-4 text-neutral-200" aria-hidden="true" /><span className="text-sm font-semibold text-white">Project Espera</span></div>
     </div>
     {mobileOpen && <><div className="fixed inset-0 z-40 bg-black/70 md:hidden" onClick={() => setMobileOpen(false)} />{sidebar(true)}</>}
   </>;

@@ -228,8 +228,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
         }`}
       >
         <div className="flex items-center gap-3 border-b border-neutral-800 px-4 py-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-sm font-bold text-black">E</div>
-          <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-white">Project Espera</div><div className="truncate text-[10px] text-neutral-500">{t('brand.tagline')}</div></div>
+          <Sparkles className="h-5 w-5 shrink-0 text-neutral-200" aria-hidden="true" />
+          <div className="min-w-0 flex-1 truncate text-sm font-semibold text-white">Project Espera</div>
           {sidebarOpen && <button type="button" aria-label="Close conversations" onClick={() => setSidebarOpen(false)} className="rounded-lg p-2 text-neutral-500 hover:bg-neutral-800 hover:text-white md:hidden"><X className="h-4 w-4" /></button>}
         </div>
         <div className="space-y-1 border-b border-neutral-800 p-3">
