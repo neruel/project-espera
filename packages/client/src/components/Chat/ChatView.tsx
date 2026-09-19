@@ -223,7 +223,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
       {/* Unified ChatGPT-style workspace sidebar */}
       <aside
-        className={`w-72 bg-[#101012] border-r border-neutral-800 flex flex-col z-20 transition-transform duration-200 md:translate-x-0 ${
+        className={`w-64 bg-[#101012] border-r border-neutral-800 flex flex-col z-20 transition-transform duration-200 md:translate-x-0 ${
           sidebarOpen ? 'translate-x-0 fixed inset-y-16 left-0' : '-translate-x-full md:relative md:translate-x-0'
         }`}
       >
@@ -235,7 +235,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         <div className="space-y-1 border-b border-neutral-800 p-3">
           <button
             onClick={handleCreateNewConversation}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-white px-3 py-2.5 text-sm font-semibold text-black transition hover:bg-neutral-200"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-neutral-800 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-700"
           >
             <Plus className="w-4 h-4" />
             <span>{t('chat.new')}</span>
@@ -274,9 +274,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
       </aside>
 
       {/* Main Chat Thread */}
-      <main className="flex-1 flex flex-col bg-[#090d16] overflow-hidden">
+      <main className="flex-1 flex flex-col bg-[#0b0b0d] overflow-hidden">
         {/* Chat Header with Provider/Model Switcher */}
-        <div className="min-h-14 border-b border-slate-800/80 px-4 py-2 flex items-center justify-between gap-3 bg-[#0d1422]/80 backdrop-blur">
+        <div className="min-h-14 border-b border-neutral-800 px-4 py-2 flex items-center justify-between gap-3 bg-[#0b0b0d]">
           <div className="flex items-center space-x-2">
             {!sidebarOpen && <button
               onClick={() => setSidebarOpen(true)}
@@ -372,16 +372,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
         <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-8 space-y-5">
           {messages.length === 0 && !streamDelta && (
             <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-500">
-              <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-sky-500/20 to-indigo-500/20 flex items-center justify-center text-sky-300 border border-sky-500/20 shadow-xl shadow-sky-950/20">
+              <div className="w-14 h-14 rounded-2xl bg-neutral-900 flex items-center justify-center text-neutral-300 border border-neutral-800">
                 <Sparkles className="w-6 h-6" />
               </div>
-              <h3 className="mt-5 text-xl font-semibold tracking-tight text-slate-100">{t('chat.empty.title')}</h3>
-              <p className="mt-2 text-sm max-w-md leading-6 text-slate-400">
+              <h3 className="mt-5 text-lg font-semibold tracking-tight text-neutral-100">{t('chat.empty.title')}</h3>
+              <p className="mt-2 text-sm max-w-md leading-6 text-neutral-500">
                 {t('chat.empty.body')}
               </p>
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-2 w-full max-w-xl">
                 {[t('chat.prompt.memory'), t('chat.prompt.plan'), t('chat.prompt.project')].map((prompt) => (
-                  <button key={prompt} type="button" onClick={() => setInput(prompt)} className="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-3 text-left text-xs text-slate-300 hover:border-sky-500/40 hover:bg-slate-800 transition">{prompt}</button>
+                  <button key={prompt} type="button" onClick={() => setInput(prompt)} className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-3 text-left text-xs text-neutral-300 hover:border-neutral-600 hover:bg-neutral-800 transition">{prompt}</button>
                 ))}
               </div>
             </div>
@@ -428,10 +428,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
         {/* Input Bar */}
         <form
           onSubmit={handleSendMessage}
-          className="p-3 sm:p-4 border-t border-slate-800 bg-[#0d1422]/90 backdrop-blur"
+          className="p-3 sm:p-4 border-t border-neutral-800 bg-[#0b0b0d]"
         >
           <div className="max-w-3xl mx-auto">
-            <div className="flex items-center space-x-2 rounded-2xl border border-slate-700/80 bg-slate-950 p-2 shadow-xl shadow-black/20 focus-within:border-sky-500/60 focus-within:ring-4 focus-within:ring-sky-500/5">
+            <div className="flex items-center space-x-2 rounded-2xl border border-neutral-700 bg-neutral-900 p-2 shadow-xl shadow-black/20 focus-within:border-neutral-500">
             <input
               type="text"
               value={input}
@@ -445,7 +445,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               disabled={!isStreaming && !input.trim()}
               onClick={isStreaming ? stopGeneration : undefined}
               aria-label={isStreaming ? 'Stop generation' : 'Send message'}
-              className="p-3 rounded-xl bg-sky-500 hover:bg-sky-400 disabled:opacity-40 disabled:hover:bg-sky-500 text-white transition shadow-sm"
+              className="p-3 rounded-xl bg-neutral-200 hover:bg-white disabled:opacity-40 disabled:hover:bg-neutral-200 text-black transition shadow-sm"
             >
               {isStreaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </button>
