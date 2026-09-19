@@ -9,14 +9,14 @@ import { createPersonaRoutes } from './routes/persona.js';
 import { createProviderRoutes } from './routes/providers.js';
 import { createInspectorRoutes } from './routes/inspector.js';
 
-export function createApp(db: D1Database, registry?: ProviderRegistry) {
+export function createApp(db: D1Database, registry?: ProviderRegistry, options?: { allowedOrigin?: string }) {
   const app = new Hono();
   const providerRegistry = registry ?? new ProviderRegistry();
 
   app.use(
     '*',
     cors({
-      origin: '*',
+      origin: options?.allowedOrigin || '*',
       allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowHeaders: ['Content-Type', 'Authorization', 'X-Espera-Credential'],
     })

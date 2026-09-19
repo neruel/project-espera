@@ -8,3 +8,6 @@ binding = "DB"
 database_name = "project-espera-db"
 database_id = "6f8db068-36f0-4219-a5f0-415be0a99aad"
 migrations_dir = "migrations"
+
+[vars]
+ESPERA_ALLOWED_ORIGIN = "https://project-espera-web.pages.dev"

@@ -31,7 +31,7 @@ npx wrangler d1 list
 
 Use only the dedicated `project-espera-db` database configured in `packages/server/wrangler.toml`. Apply migrations with `npx wrangler d1 migrations apply <database-name> --remote`, then deploy the Worker with `npx wrangler deploy`.
 
-The current Worker has a single default user and is not suitable for a public multi-user deployment without an authentication layer. Configure an explicit production CORS origin before exposing it.
+The current Worker has a single default user and is not suitable for a public multi-user deployment without an authentication layer. Production CORS is pinned to the Pages origin in `wrangler.toml`.
 
 ## Current deployment
 
