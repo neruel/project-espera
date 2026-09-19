@@ -2,10 +2,12 @@ import { Hono } from 'hono';
 import { CreateConversationSchema } from '@espera/shared';
 import type { D1Database } from '../db/d1-interface.js';
 import { ConversationRepository } from '../db/repositories/conversation.repo.js';
+import { UserRepository } from '../db/repositories/user.repo.js';
 
 export function createConversationRoutes(db: D1Database) {
   const router = new Hono();
   const convRepo = new ConversationRepository(db);
+  const userRepo = new UserRepository(db);
   const userId = 'user_default';
 
   // GET /api/conversations
@@ -16,6 +18,7 @@ export function createConversationRoutes(db: D1Database) {
 
   // POST /api/conversations
   router.post('/', async (c) => {
+    await userRepo.ensureUser(userId, 'Espera User');
     const raw = await c.req.json().catch(() => ({}));
     const parsed = CreateConversationSchema.safeParse(raw);
     const title = parsed.success ? parsed.data.title : 'New Conversation';

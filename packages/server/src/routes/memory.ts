@@ -8,10 +8,12 @@ import {
 } from '@espera/shared';
 import type { D1Database } from '../db/d1-interface.js';
 import { MemoryRepository } from '../db/repositories/memory.repo.js';
+import { UserRepository } from '../db/repositories/user.repo.js';
 
 export function createMemoryRoutes(db: D1Database) {
   const router = new Hono();
   const memoryRepo = new MemoryRepository(db);
+  const userRepo = new UserRepository(db);
   const userId = 'user_default';
 
   // GET /api/memories (list with filters)
@@ -31,6 +33,7 @@ export function createMemoryRoutes(db: D1Database) {
 
   // POST /api/memories (create manual memory directly as active)
   router.post('/', async (c) => {
+    await userRepo.ensureUser(userId, 'Espera User');
     const raw = await c.req.json();
     const parsed = CreateMemoryManualSchema.safeParse(raw);
     if (!parsed.success) {
