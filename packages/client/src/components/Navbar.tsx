@@ -58,7 +58,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, pending
     <>
       <button onClick={createConversation} className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg bg-neutral-800 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-700"><Plus className="h-4 w-4" />{t('chat.new')}</button>
       <div className="space-y-1">
-        <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-600">Workspace</p>
+        <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-600">{t('common.workspace')}</p>
         {navItems.map(({ id, icon: Icon, key }) => (
           <button key={id} onClick={() => select(id)} className={`group w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${currentTab === id ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:bg-neutral-900 hover:text-neutral-100'}`}>
             <Icon className={`h-[18px] w-[18px] ${currentTab === id ? 'text-neutral-100' : 'text-neutral-500 group-hover:text-neutral-300'}`} />
@@ -96,7 +96,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab, pending
       <div className="my-3 border-t border-neutral-800" />
       <nav className="flex min-h-0 flex-1 flex-col">{navigation()}</nav>
       <div className="border-t border-neutral-800 pt-3">
-        <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-600">Account</p>
+        <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-600">{t('common.account')}</p>
         <AccountMenu auth={auth} onLoggedOut={onLoggedOut} />
         <div className="mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-[11px] text-neutral-600"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{session.providerId} · {session.modelId}</div>
       </div>

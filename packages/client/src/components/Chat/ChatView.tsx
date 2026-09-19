@@ -390,7 +390,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               {isStreaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </button>
             </div>
-            <p className="mt-2 text-center text-[10px] text-slate-600">Espera can make mistakes. Review important memories before approving them.</p>
+            <p className="mt-2 text-center text-[10px] text-slate-600">{t('chat.disclaimer')}</p>
           </div>
         </form>
       </main>
