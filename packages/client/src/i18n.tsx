@@ -15,7 +15,7 @@ const dictionaries: Record<Language, Dictionary> = {
     'persona.title': '페르소나', 'persona.subtitle': 'AI가 나를 대하는 방식과 응답 원칙을 직접 정의합니다.', 'persona.edit': '편집',
     'projects.title': '프로젝트', 'projects.subtitle': '장기 작업을 분리해 프로젝트별 기억과 맥락을 유지합니다.', 'projects.create': '프로젝트 만들기', 'projects.name': '프로젝트 이름', 'projects.description': '이 프로젝트에 포함할 내용', 'projects.empty': '아직 프로젝트가 없습니다.',
     'settings.title': '설정', 'settings.language': '언어', 'settings.language.help': 'Espera 화면에 사용할 언어를 선택하세요.', 'settings.korean': '한국어', 'settings.english': 'English',
-    'settings.providers': 'Provider 연결', 'settings.providers.help': 'API Key는 이 브라우저 탭에서만 사용되며 저장되지 않습니다.',
+    'settings.providers': 'Provider 연결', 'settings.providers.help': 'API Key는 이 브라우저 탭에서만 사용되며 저장되지 않습니다.', 'settings.addConnection': '연결 추가', 'settings.provider': 'Provider', 'settings.connectionName': '연결 이름', 'settings.baseUrl': 'API Base URL', 'settings.apiKey': 'API Key', 'settings.discover': '모델 검색', 'settings.save': '연결 저장', 'settings.saved': '저장된 연결', 'settings.none': '저장된 연결이 없습니다.',
     'auth.welcome': 'Espera에 오신 것을 환영합니다', 'auth.body': '대화, 기억, 개인 AI 맥락을 하나의 비공개 workspace에서 관리하세요.', 'auth.github': 'GitHub로 계속하기', 'auth.notConfigured': 'GitHub 로그인이 아직 설정되지 않았습니다.',
   },
   en: {
@@ -29,7 +29,7 @@ const dictionaries: Record<Language, Dictionary> = {
     'persona.title': 'Persona', 'persona.subtitle': 'Define how your AI should treat you and respond to you.', 'persona.edit': 'Edit persona',
     'projects.title': 'Projects', 'projects.subtitle': 'Keep long-running work separate with project-scoped memory and context.', 'projects.create': 'Create project', 'projects.name': 'Project name', 'projects.description': 'What belongs in this project?', 'projects.empty': 'No projects yet.',
     'settings.title': 'Settings', 'settings.language': 'Language', 'settings.language.help': 'Choose the language used throughout Espera.', 'settings.korean': '한국어', 'settings.english': 'English',
-    'settings.providers': 'Provider connections', 'settings.providers.help': 'API keys are used only in this browser tab and are never stored.',
+    'settings.providers': 'Provider connections', 'settings.providers.help': 'API keys are used only in this browser tab and are never stored.', 'settings.addConnection': 'Add connection', 'settings.provider': 'Provider', 'settings.connectionName': 'Connection name', 'settings.baseUrl': 'API base URL', 'settings.apiKey': 'API key', 'settings.discover': 'Discover models', 'settings.save': 'Save connection', 'settings.saved': 'Saved connections', 'settings.none': 'No saved connections yet.',
     'auth.welcome': 'Welcome to Espera', 'auth.body': 'Your conversations, memory, and personal AI context in one private workspace.', 'auth.github': 'Continue with GitHub', 'auth.notConfigured': 'GitHub sign-in is not configured yet.',
   },
 };

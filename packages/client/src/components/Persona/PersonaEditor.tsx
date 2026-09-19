@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Sparkles, Edit3, History, Check, Save, ShieldAlert } from 'lucide-react';
 import type { Persona, PersonaRevision } from '@espera/shared';
 import { api } from '../../services/api.js';
+import { useLanguage } from '../../i18n.js';
 
 export const PersonaEditor: React.FC = () => {
+  const { t } = useLanguage();
   const [persona, setPersona] = useState<Persona | null>(null);
   const [revisions, setRevisions] = useState<PersonaRevision[]>([]);
   const [isEditing, setIsEditing] = useState(false);
@@ -78,13 +80,13 @@ export const PersonaEditor: React.FC = () => {
         <div>
           <h1 className="text-xl font-bold text-white flex items-center space-x-2">
             <Sparkles className="w-5 h-5 text-sky-400" />
-            <span>페르소나 관리 (Persona Engine)</span>
+            <span>{t('persona.title')}</span>
             <span className="text-xs px-2 py-0.5 rounded-full bg-sky-950 text-sky-400 border border-sky-800 font-mono">
               v{persona.version}
             </span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            에스페라가 사용자를 대하는 태도, 어조, 지침을 정의합니다. (기억과 분리 관리되며, 사용자의 직접 편집으로만 버전이 갱신됩니다)
+            {t('persona.subtitle')}
           </p>
         </div>
 
@@ -94,7 +96,7 @@ export const PersonaEditor: React.FC = () => {
             className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow transition self-start sm:self-auto"
           >
             <Edit3 className="w-4 h-4" />
-            <span>페르소나 편집</span>
+            <span>{t('persona.edit')}</span>
           </button>
         )}
       </div>
