@@ -22,7 +22,7 @@ Espera is a provider-independent persistence layer for persona, user-controlled 
 
 ## Known gaps
 
-- Provider connection metadata is currently held in the client preference/session layer; the D1 provider catalog migration exists but has no complete CRUD API/repository yet.
+- Provider connection metadata and model catalogs are persisted in D1; API keys remain session-only.
 - Authentication is intentionally a single local default user. A production deployment needs an explicit auth boundary before exposing private data publicly.
 - Projects are represented in the schema but do not yet have a complete UI/API workflow.
 - Conversation retry/cancel UX and automated browser E2E coverage are incomplete.
@@ -39,14 +39,15 @@ Espera is a provider-independent persistence layer for persona, user-controlled 
 
 ## Priority order
 
-1. Add provider connection metadata CRUD and model catalog persistence.
-2. Add explicit production auth and origin configuration.
-3. Add Project API/UI and browser-level smoke tests.
-4. Add explicit production auth and browser-level E2E coverage before broad public use.
+1. Add explicit production auth and origin configuration.
+2. Add Project API/UI and browser-level smoke tests.
+3. Add retry/cancel UX and browser-level E2E coverage.
+4. Upgrade Wrangler 3 to Wrangler 4 in a compatibility-tested change.
 
 ## Deployment verified
 
 - API Worker: `project-espera-api` at `https://project-espera-api.hfainvididual.workers.dev`
 - Frontend Pages project: `project-espera-web` at `https://project-espera-web.pages.dev`
-- D1: `project-espera-db` (migrations 0001 and 0002 applied)
+- D1: `project-espera-db` (migrations 0001, 0002, and 0003 applied)
 - Production smoke path: health → providers → persona → conversation → Mock chat → pending memory → frontend load
+- Provider persistence smoke path: create metadata → reload from D1 → verify credential redaction → delete

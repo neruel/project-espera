@@ -38,7 +38,7 @@ The current Worker has a single default user and is not suitable for a public mu
 - API Worker: `https://project-espera-api.hfainvididual.workers.dev`
 - Frontend: `https://project-espera-web.pages.dev`
 - D1 database: `project-espera-db`
-- Verified Worker version: `c7e4ec1f-a44f-49f0-8cf4-62b9a008465a`
+- Verified Worker version: `a215bf7c-349a-46a1-9bb8-849fb0cd5737`
 
 ## Credential lifecycle
 
