@@ -1,0 +1,5 @@
+export interface ProviderConnection { id:string; name:string; providerId:string; baseUrl?:string; models:{id:string;name:string;contextWindow:number;supportsStreaming:boolean}[]; }
+export interface SessionState { providerId:string; modelId:string; connectionId:string; apiKeys:Record<string,string>; connections:ProviderConnection[]; inspectorOpen:boolean; selectedConversationId:string|null; }
+const STORAGE_KEY='espera_non_secret_preferences';
+export function getInitialSession():SessionState { let pref:any={};try{pref=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}')}catch{} return {providerId:pref.providerId||'mock',modelId:pref.modelId||'mock-model-a',connectionId:pref.connectionId||'mock',apiKeys:{},connections:[],inspectorOpen:false,selectedConversationId:null}; }
+export function saveSessionState(s:SessionState){try{localStorage.setItem(STORAGE_KEY,JSON.stringify({providerId:s.providerId,modelId:s.modelId,connectionId:s.connectionId}))}catch{}}

@@ -1,0 +1,27 @@
+{
+  "name": "project-espera",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev --workspace=@espera/server",
+    "dev:client": "npm run dev --workspace=@espera/client",
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"blue,green\" \"npm:dev:server\" \"npm:dev:client\"",
+    "db:migrate:local": "tsx packages/server/src/db/local-db-cli.ts migrate",
+    "db:reset:local": "tsx packages/server/src/db/local-db-cli.ts reset",
+    "dev:wrangler": "npm run dev:wrangler --workspace=@espera/server",
+    "lint": "node scripts/lint.mjs",
+    "build": "npm run build --workspace=@espera/shared && npm run build --workspace=@espera/server && npm run build --workspace=@espera/client",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "npm run typecheck --workspaces"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "tsx": "^4.23.13",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.7"
+  }
+}
