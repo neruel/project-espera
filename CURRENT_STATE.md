@@ -25,7 +25,7 @@ Espera is a provider-independent persistence layer for persona, user-controlled 
 - Provider connection metadata and model catalogs are persisted in D1; API keys remain session-only.
 - Authentication is intentionally a single local default user. A production deployment needs an explicit auth boundary before exposing private data publicly.
 - Projects now have D1-backed create/list/delete workflows, a dedicated UI, and project-scoped context injection in chat.
-- Conversation retry/cancel UX and automated browser E2E coverage are incomplete.
+- Conversation retry UX and automated browser E2E coverage are incomplete; streaming cancellation is now wired from browser AbortController through the Worker request signal.
 - A dedicated `project-espera-db` D1 has been created, wired into `packages/server/wrangler.toml`, migrated, and used by the deployed Worker.
 - Production CORS is restricted to `https://project-espera-web.pages.dev`; local development and tests retain wildcard CORS by omission.
 - DNS rebinding protection for arbitrary custom hosts cannot be fully enforced by the current Worker-only URL parser; production should prefer official endpoints or an explicit allowlist.
