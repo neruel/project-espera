@@ -2,22 +2,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Send,
   Plus,
-  MessageSquare,
   Sparkles,
   Terminal,
   Brain,
-  FolderKanban,
   Sliders,
   Loader2,
-  Menu,
-  X,
 } from 'lucide-react';
 import type { Conversation, Message, Project } from '@espera/shared';
 import { api, type ProviderInfo } from '../../services/api.js';
 import type { SessionState } from '../../stores/session.js';
 import { useLanguage } from '../../i18n.js';
 import type { AuthState } from '../../services/api.js';
-import { AccountMenu } from '../Account/AccountMenu.js';
 
 interface ChatViewProps {
   session: SessionState;
@@ -54,7 +49,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamDelta, setStreamDelta] = useState('');
   const [recentExtractedCount, setRecentExtractedCount] = useState(0);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [failedQuery, setFailedQuery] = useState<string | null>(null);
@@ -66,6 +60,18 @@ export const ChatView: React.FC<ChatViewProps> = ({
   useEffect(() => {
     loadConversations();
   }, []);
+
+  useEffect(() => {
+    const handleNewConversation = () => { void handleCreateNewConversation(); };
+    const handleSelectConversation = (event: Event) => setActiveConvId((event as CustomEvent<string>).detail);
+    window.addEventListener('espera:new-conversation', handleNewConversation);
+    window.addEventListener('espera:select-conversation', handleSelectConversation);
+    return () => { window.removeEventListener('espera:new-conversation', handleNewConversation); window.removeEventListener('espera:select-conversation', handleSelectConversation); };
+  }, []);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('espera:conversations-updated', { detail: { conversations, activeId: activeConvId } }));
+  }, [conversations, activeConvId]);
 
   // Load messages when active conversation changes
   useEffect(() => {
@@ -112,7 +118,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
       setMessages([]);
       setStreamDelta('');
       setRecentExtractedCount(0);
-      setSidebarOpen(false);
     } catch (err) {
       console.error('Failed to create conversation', err);
     }
@@ -213,76 +218,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   return (
     <div className="flex-1 min-h-0 flex overflow-hidden h-full relative bg-[#0b0b0d]">
-      {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 z-20 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Unified ChatGPT-style workspace sidebar */}
-      <aside
-        className={`w-64 bg-[#101012] border-r border-neutral-800 flex flex-col z-20 transition-transform duration-200 md:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0 fixed inset-y-16 left-0' : '-translate-x-full md:relative md:translate-x-0'
-        }`}
-      >
-        <div className="flex items-center gap-3 border-b border-neutral-800 px-4 py-4">
-          <Sparkles className="h-5 w-5 shrink-0 text-neutral-200" aria-hidden="true" />
-          <div className="min-w-0 flex-1 truncate text-sm font-semibold text-white">Project Espera</div>
-          {sidebarOpen && <button type="button" aria-label="Close conversations" onClick={() => setSidebarOpen(false)} className="rounded-lg p-2 text-neutral-500 hover:bg-neutral-800 hover:text-white md:hidden"><X className="h-4 w-4" /></button>}
-        </div>
-        <div className="space-y-1 border-b border-neutral-800 p-3">
-          <button
-            onClick={handleCreateNewConversation}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-neutral-800 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-700"
-          >
-            <Plus className="w-4 h-4" />
-            <span>{t('chat.new')}</span>
-          </button>
-          <button onClick={() => onNavigateTab('projects')} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-400 hover:bg-neutral-900 hover:text-white"><FolderKanban className="h-4 w-4" />{t('nav.projects')}</button>
-          <button onClick={() => onNavigateTab('memory')} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-400 hover:bg-neutral-900 hover:text-white"><Brain className="h-4 w-4" />{t('nav.memory')}{pendingCount > 0 && <span className="ml-auto rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-black">{pendingCount}</span>}</button>
-          <button onClick={() => onNavigateTab('persona')} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-400 hover:bg-neutral-900 hover:text-white"><Sparkles className="h-4 w-4" />{t('nav.persona')}</button>
-          <button onClick={() => onNavigateTab('settings')} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-400 hover:bg-neutral-900 hover:text-white"><Sliders className="h-4 w-4" />{t('nav.settings')}</button>
-        </div>
-
-        <div className="px-4 pt-4 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-600">{t('chat.conversations')}</div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3 space-y-1">
-          {conversations.length === 0 ? (
-            <div className="p-4 text-center text-xs text-slate-500">{t('chat.emptyConversations')}</div>
-          ) : (
-            conversations.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => {
-                  setActiveConvId(c.id);
-                  setSidebarOpen(false);
-                }}
-                className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center space-x-2.5 text-xs transition ${
-                  activeConvId === c.id
-                    ? 'bg-neutral-800 text-white font-medium'
-                    : 'text-neutral-400 hover:bg-neutral-900 hover:text-neutral-100'
-                }`}
-              >
-                <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate flex-1">{c.title || t('chat.new')}</span>
-              </button>
-            ))
-          )}
-        </div>
-        <div className="border-t border-neutral-800 p-3"><p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-600">Account</p><AccountMenu auth={auth} onLoggedOut={onLoggedOut} /></div>
-      </aside>
-
       {/* Main Chat Thread */}
       <main className="flex-1 flex flex-col bg-[#0b0b0d] overflow-hidden">
         {/* Chat Header with Provider/Model Switcher */}
         <div className="min-h-14 border-b border-neutral-800 px-4 py-2 flex items-center justify-between gap-3 bg-[#0b0b0d]">
           <div className="flex items-center space-x-2">
-            {!sidebarOpen && <button
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open conversations"
-              className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
-            ><Menu className="w-5 h-5" /></button>}
             <h2 className="text-sm font-semibold text-slate-100 truncate max-w-[160px] sm:max-w-xs">
               {conversations.find((c) => c.id === activeConvId)?.title || t('chat.conversation')}
             </h2>
