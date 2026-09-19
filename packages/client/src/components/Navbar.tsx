@@ -65,7 +65,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             <MessageSquare className="w-4 h-4" />
-            <span className="hidden sm:inline">대화</span>
+            <span className="hidden sm:inline">Chat</span>
           </button>
 
           <button
@@ -77,7 +77,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             <Brain className="w-4 h-4" />
-            <span className="hidden sm:inline">기억 보관소</span>
+            <span className="hidden sm:inline">Memory</span>
             {pendingCount > 0 && (
               <span className="ml-1 px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-amber-500 text-slate-950 animate-pulse">
                 {pendingCount}
@@ -94,7 +94,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             <Sparkles className="w-4 h-4" />
-            <span className="hidden sm:inline">페르소나</span>
+            <span className="hidden sm:inline">Persona</span>
           </button>
 
           <button
@@ -106,7 +106,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             <Sliders className="w-4 h-4" />
-            <span className="hidden sm:inline">모델/키 설정</span>
+            <span className="hidden sm:inline">Settings</span>
           </button>
         </nav>
 
