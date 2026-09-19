@@ -11,6 +11,7 @@ import {
 import type { SessionState } from '../stores/session.js';
 import type { AuthState } from '../services/api.js';
 import { AccountMenu } from './Account/AccountMenu.js';
+import { useLanguage } from '../i18n.js';
 
 interface NavbarProps {
   currentTab: 'chat' | 'memory' | 'persona' | 'projects' | 'settings';
@@ -31,6 +32,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   auth,
   onLoggedOut,
 }) => {
+  const { t } = useLanguage();
   return (
     <header className="border-b border-slate-800/80 bg-[#0b111d]/95 backdrop-blur sticky top-0 z-30">
       <div className="max-w-[1600px] mx-auto px-3 sm:px-5 flex items-center justify-between h-16 gap-3">
@@ -44,7 +46,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="font-semibold tracking-tight text-white text-base sm:text-lg">Project Espera</span>
               <span className="hidden sm:inline text-[10px] uppercase font-semibold tracking-[0.16em] text-slate-500">Personal AI workspace</span>
             </div>
-            <p className="text-[11px] text-slate-500 hidden sm:block">Your context, across every model</p>
+            <p className="text-[11px] text-slate-500 hidden sm:block">{t('brand.tagline')}</p>
           </div>
         </div>
 
@@ -57,7 +59,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             <FolderKanban className="w-4 h-4" />
-            <span className="hidden sm:inline">Projects</span>
+            <span className="hidden sm:inline">{t('nav.projects')}</span>
           </button>
 
           <button
@@ -69,7 +71,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             <MessageSquare className="w-4 h-4" />
-            <span className="hidden sm:inline">Chat</span>
+            <span className="hidden sm:inline">{t('nav.chat')}</span>
           </button>
 
           <button
@@ -81,7 +83,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             <Brain className="w-4 h-4" />
-            <span className="hidden sm:inline">Memory</span>
+            <span className="hidden sm:inline">{t('nav.memory')}</span>
             {pendingCount > 0 && (
               <span className="ml-1 px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-amber-500 text-slate-950 animate-pulse">
                 {pendingCount}
@@ -98,7 +100,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             <Sparkles className="w-4 h-4" />
-            <span className="hidden sm:inline">Persona</span>
+            <span className="hidden sm:inline">{t('nav.persona')}</span>
           </button>
 
           <button
@@ -110,7 +112,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             <Sliders className="w-4 h-4" />
-            <span className="hidden sm:inline">Settings</span>
+            <span className="hidden sm:inline">{t('nav.settings')}</span>
           </button>
         </nav>
 
@@ -128,7 +130,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-mono transition"
           >
             <Terminal className="w-3.5 h-3.5 text-sky-400" />
-            <span className="hidden lg:inline text-[11px]">Inspector</span>
+            <span className="hidden lg:inline text-[11px]">{t('nav.inspector')}</span>
           </button>
           <AccountMenu auth={auth} onLoggedOut={onLoggedOut} />
         </div>

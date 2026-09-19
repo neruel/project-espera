@@ -4,10 +4,12 @@ import type { ProviderInfo } from '../../services/api.js';
 import type { ModelDescriptor } from '@espera/shared';
 import { api } from '../../services/api.js';
 import type { ProviderConnection, SessionState } from '../../stores/session.js';
+import { useLanguage } from '../../i18n.js';
 
 interface Props { session: SessionState; onUpdateSession: (patch: Partial<SessionState>) => void; providers: ProviderInfo[]; }
 
 export const SettingsView: React.FC<Props> = ({ session, onUpdateSession, providers }) => {
+  const { language, setLanguage, t } = useLanguage();
   const [providerId, setProviderId] = useState('openai-compatible');
   const [name, setName] = useState('Local API connection');
   const [baseUrl, setBaseUrl] = useState('http://localhost:1234/v1');
@@ -62,7 +64,16 @@ export const SettingsView: React.FC<Props> = ({ session, onUpdateSession, provid
   }
 
   return <main className="flex-1 w-full max-w-5xl mx-auto overflow-y-auto p-4 sm:p-6 space-y-6">
-    <header><h1 className="flex items-center gap-2 text-xl font-bold text-white"><Sliders className="text-sky-400" /> Provider connections</h1><p className="mt-1 text-sm text-slate-400">Keep connection metadata persistent while keeping API keys in this browser tab only.</p></header>
+    <header><h1 className="flex items-center gap-2 text-xl font-bold text-white"><Sliders className="text-sky-400" /> {t('settings.title')}</h1><p className="mt-1 text-sm text-slate-400">{t('settings.providers.help')}</p></header>
+    <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div><h2 className="font-semibold text-white">{t('settings.language')}</h2><p className="mt-1 text-sm text-slate-500">{t('settings.language.help')}</p></div>
+        <div className="flex rounded-xl border border-slate-700 bg-slate-950 p-1" role="group" aria-label={t('settings.language')}>
+          <button type="button" onClick={() => setLanguage('ko')} className={`rounded-lg px-4 py-2 text-sm transition ${language === 'ko' ? 'bg-sky-500 text-white' : 'text-slate-400 hover:text-white'}`}>{t('settings.korean')}</button>
+          <button type="button" onClick={() => setLanguage('en')} className={`rounded-lg px-4 py-2 text-sm transition ${language === 'en' ? 'bg-sky-500 text-white' : 'text-slate-400 hover:text-white'}`}>{t('settings.english')}</button>
+        </div>
+      </div>
+    </section>
     <div className="flex gap-3 rounded-xl border border-sky-800 bg-sky-950/30 p-4 text-sm text-slate-300"><ShieldCheck className="shrink-0 text-sky-400" /><p>Keys are never written to D1, Web Storage, URLs, logs, or context runs. After a reload, re-enter the key before using a non-Mock provider.</p></div>
     <section className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900 p-5"><h2 className="font-semibold text-white">Add connection</h2><div className="grid gap-4 sm:grid-cols-2">
       <label className="text-sm text-slate-300">Provider<select className="field" value={providerId} onChange={(event) => changeProvider(event.target.value)}>{providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}</select></label>

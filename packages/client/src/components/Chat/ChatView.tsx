@@ -14,6 +14,7 @@ import {
 import type { Conversation, Message, Project } from '@espera/shared';
 import { api, type ProviderInfo } from '../../services/api.js';
 import type { SessionState } from '../../stores/session.js';
+import { useLanguage } from '../../i18n.js';
 
 interface ChatViewProps {
   session: SessionState;
@@ -34,6 +35,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onPendingCountChange,
   projects,
 }) => {
+  const { t } = useLanguage();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -220,14 +222,15 @@ export const ChatView: React.FC<ChatViewProps> = ({
             className="flex-1 flex items-center justify-center space-x-2 px-3 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-semibold shadow-lg shadow-sky-950/30 transition"
           >
             <Plus className="w-4 h-4" />
-            <span>새 대화 시작</span>
+            <span>{t('chat.new')}</span>
           </button>
+          {sidebarOpen && <button type="button" aria-label="Close conversations" onClick={() => setSidebarOpen(false)} className="ml-2 rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white md:hidden"><X className="h-4 w-4" /></button>}
         </div>
 
-        <div className="px-3 pt-4 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Conversations</div>
+        <div className="px-3 pt-4 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{t('chat.conversations')}</div>
         <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-1">
           {conversations.length === 0 ? (
-            <div className="p-4 text-center text-xs text-slate-500">대화 내역이 없습니다.</div>
+            <div className="p-4 text-center text-xs text-slate-500">{t('chat.emptyConversations')}</div>
           ) : (
             conversations.map((c) => (
               <button
@@ -243,7 +246,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 }`}
               >
                 <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate flex-1">{c.title || '새 대화'}</span>
+                <span className="truncate flex-1">{c.title || t('chat.new')}</span>
               </button>
             ))
           )}
@@ -255,14 +258,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
         {/* Chat Header with Provider/Model Switcher */}
         <div className="min-h-14 border-b border-slate-800/80 px-4 py-2 flex items-center justify-between gap-3 bg-[#0d1422]/80 backdrop-blur">
           <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
+            {!sidebarOpen && <button
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open conversations"
               className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
-            >
-              {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
+            ><Menu className="w-5 h-5" /></button>}
             <h2 className="text-sm font-semibold text-slate-100 truncate max-w-[160px] sm:max-w-xs">
-              {conversations.find((c) => c.id === activeConvId)?.title || '에스페라 대화'}
+              {conversations.find((c) => c.id === activeConvId)?.title || t('chat.conversation')}
             </h2>
           </div>
 
@@ -274,7 +276,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               onChange={(event) => setSelectedProjectId(event.target.value || null)}
               className="hidden max-w-[150px] rounded-lg border border-slate-700/80 bg-slate-900 px-2.5 py-2 text-xs text-slate-200 sm:block"
             >
-              <option value="">Global context</option>
+              <option value="">{t('chat.global')}</option>
               {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
             </select>
             {/* Provider Selector */}
@@ -342,7 +344,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         {errorMessage && (
           <div className="flex items-center justify-between gap-3 border-b border-rose-900/60 bg-rose-950/40 px-4 py-2 text-sm text-rose-200" role="alert">
             <span>{errorMessage}</span>
-            {failedQuery && <button className="rounded-md border border-rose-700 px-2 py-1 text-xs font-semibold hover:bg-rose-900" onClick={retryFailedMessage}>Retry</button>}
+            {failedQuery && <button className="rounded-md border border-rose-700 px-2 py-1 text-xs font-semibold hover:bg-rose-900" onClick={retryFailedMessage}>{t('chat.retry')}</button>}
           </div>
         )}
 
@@ -353,12 +355,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
               <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-sky-500/20 to-indigo-500/20 flex items-center justify-center text-sky-300 border border-sky-500/20 shadow-xl shadow-sky-950/20">
                 <Sparkles className="w-6 h-6" />
               </div>
-              <h3 className="mt-5 text-xl font-semibold tracking-tight text-slate-100">무엇을 함께 정리해볼까요?</h3>
+              <h3 className="mt-5 text-xl font-semibold tracking-tight text-slate-100">{t('chat.empty.title')}</h3>
               <p className="mt-2 text-sm max-w-md leading-6 text-slate-400">
-                대화 중 공유해주시는 중요한 프로젝트, 직업, 선호도는 자동으로 기억 후보로 저장되며, 승인 시 모든 AI 모델에서 공유됩니다.
+                {t('chat.empty.body')}
               </p>
               <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-2 w-full max-w-xl">
-                {['내 기억을 확인해줘', '이번 주 계획을 정리해줘', 'Project Espera를 설명해줘'].map((prompt) => (
+                {[t('chat.prompt.memory'), t('chat.prompt.plan'), t('chat.prompt.project')].map((prompt) => (
                   <button key={prompt} type="button" onClick={() => setInput(prompt)} className="rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-3 text-left text-xs text-slate-300 hover:border-sky-500/40 hover:bg-slate-800 transition">{prompt}</button>
                 ))}
               </div>
@@ -395,7 +397,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               </div>
               <span className="mt-1 text-[10px] text-sky-400 px-1 flex items-center space-x-1">
                 <Loader2 className="w-3 h-3 animate-spin" />
-                <span>답변 스트리밍 중...</span>
+                <span>{t('chat.streaming')}</span>
               </span>
             </div>
           )}
@@ -414,7 +416,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="메시지를 입력하세요... (예: 나는 컴퓨터공학을 전공하고 Project Espera를 개발하고 있어)"
+              placeholder={t('chat.placeholder')}
               disabled={isStreaming}
               className="flex-1 min-w-0 bg-transparent px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
             />

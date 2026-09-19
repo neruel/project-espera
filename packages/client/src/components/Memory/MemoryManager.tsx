@@ -15,12 +15,14 @@ import {
 } from 'lucide-react';
 import type { Memory, MemoryEvidence, MemoryRevision } from '@espera/shared';
 import { api } from '../../services/api.js';
+import { useLanguage } from '../../i18n.js';
 
 interface MemoryManagerProps {
   onMemoryChanged: () => void;
 }
 
 export const MemoryManager: React.FC<MemoryManagerProps> = ({ onMemoryChanged }) => {
+  const { t } = useLanguage();
   const [tab, setTab] = useState<'pending' | 'active' | 'history'>('pending');
   const [memories, setMemories] = useState<Memory[]>([]);
   const [search, setSearch] = useState('');
@@ -180,10 +182,10 @@ export const MemoryManager: React.FC<MemoryManagerProps> = ({ onMemoryChanged })
         <div>
           <h1 className="text-xl font-bold text-white flex items-center space-x-2">
             <Brain className="w-5 h-5 text-sky-400" />
-            <span>기억 보관소 (Memory Engine)</span>
+            <span>{t('memory.title')}</span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            사용자에 대해 학습된 사실과 맥락을 검토하고 통제합니다. 오직 승인된 기억만 AI 응답 컨텍스트에 반영됩니다.
+            {t('memory.subtitle')}
           </p>
         </div>
 
@@ -192,7 +194,7 @@ export const MemoryManager: React.FC<MemoryManagerProps> = ({ onMemoryChanged })
           className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow self-start sm:self-auto transition"
         >
           <Plus className="w-4 h-4" />
-          <span>수동 기억 등록</span>
+          <span>{t('memory.add')}</span>
         </button>
       </div>
 
@@ -207,7 +209,7 @@ export const MemoryManager: React.FC<MemoryManagerProps> = ({ onMemoryChanged })
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            📥 보류 중인 후보 (Inbox)
+            📥 {t('memory.pending')}
           </button>
           <button
             onClick={() => setTab('active')}
@@ -217,7 +219,7 @@ export const MemoryManager: React.FC<MemoryManagerProps> = ({ onMemoryChanged })
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            🧠 활성 기억 (Active)
+            🧠 {t('memory.active')}
           </button>
           <button
             onClick={() => setTab('history')}
@@ -227,7 +229,7 @@ export const MemoryManager: React.FC<MemoryManagerProps> = ({ onMemoryChanged })
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            🗄️ 거절/삭제 이력
+            🗄️ {t('memory.history')}
           </button>
         </div>
 
@@ -238,7 +240,7 @@ export const MemoryManager: React.FC<MemoryManagerProps> = ({ onMemoryChanged })
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="기억 검색..."
+            placeholder={t('memory.search')}
             className="w-full sm:w-64 pl-9 pr-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500"
           />
         </div>
