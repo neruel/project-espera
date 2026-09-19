@@ -15,11 +15,13 @@
     "lint": "node scripts/lint.mjs",
     "build": "npm run build --workspace=@espera/shared && npm run build --workspace=@espera/server && npm run build --workspace=@espera/client",
     "test:production": "node scripts/production-smoke.mjs",
+    "test:e2e": "playwright test",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "npm run typecheck --workspaces"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "concurrently": "^9.1.2",
     "tsx": "^4.23.13",
     "typescript": "^5.7.3",

@@ -13,10 +13,9 @@ export async function createTestDatabase(options: { filePath?: string } = {}): P
   const db = new SQL.Database(existing);
 
   // Find and read migration schema
-  const migrationDir = path.resolve(
-    process.cwd(),
-    'packages/server/migrations'
-  );
+  const migrationDir = path.basename(process.cwd()) === 'server'
+    ? path.resolve(process.cwd(), 'migrations')
+    : path.resolve(process.cwd(), 'packages/server/migrations');
   for (const file of fs.readdirSync(migrationDir).filter((x) => x.endsWith('.sql')).sort()) {
     // The local adapter replays migrations against its persisted SQLite file.
     // D1 tracks migrations remotely, while this lightweight adapter does not;

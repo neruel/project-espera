@@ -19,6 +19,8 @@ npm run typecheck
 npm test
 npm run build
 
+npm run test:e2e
+
 # Production smoke test (uses Mock Provider and cleans up temporary metadata)
 ESPERA_API_URL=https://project-espera-api.hfainvididual.workers.dev npm run test:production
 ```

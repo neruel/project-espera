@@ -25,7 +25,7 @@ Espera is a provider-independent persistence layer for persona, user-controlled 
 - Provider connection metadata and model catalogs are persisted in D1; API keys remain session-only.
 - Authentication is intentionally a single local default user. A production deployment needs an explicit auth boundary before exposing private data publicly.
 - Projects now have D1-backed create/list/delete workflows, a dedicated UI, and project-scoped context injection in chat.
-- Automated Chat retry UX and streaming cancellation are implemented; automated browser E2E coverage remains incomplete.
+- Automated Chat retry UX and streaming cancellation are implemented. Playwright browser E2E now covers workspace navigation, project lifecycle, Settings access, and Web Storage credential invariants.
 - A dedicated `project-espera-db` D1 has been created, wired into `packages/server/wrangler.toml`, migrated, and used by the deployed Worker.
 - Production CORS is restricted to `https://project-espera-web.pages.dev`; local development and tests retain wildcard CORS by omission.
 - DNS rebinding protection for arbitrary custom hosts cannot be fully enforced by the current Worker-only URL parser; production should prefer official endpoints or an explicit allowlist.
@@ -40,9 +40,8 @@ Espera is a provider-independent persistence layer for persona, user-controlled 
 ## Priority order
 
 1. Add explicit production auth and origin configuration.
-2. Add retry/cancel UX and browser-level E2E coverage.
-3. Add explicit production authentication before broad public use.
-4. Upgrade Wrangler 3 to Wrangler 4 in a compatibility-tested change.
+2. Add explicit production authentication before broad public use.
+3. Upgrade Wrangler 3 to Wrangler 4 in a compatibility-tested change.
 
 ## Deployment verified
 
@@ -53,3 +52,4 @@ Espera is a provider-independent persistence layer for persona, user-controlled 
 - Provider persistence smoke path: create metadata → reload from D1 → verify credential redaction → delete
 - Project context smoke path: create project → chat with project scope → inspect prompt → delete
 - Repeatable production smoke command: `ESPERA_API_URL=https://project-espera-api.hfainvididual.workers.dev npm run test:production`
+- Browser E2E command: `npm run test:e2e` (2 scenarios passed locally)
