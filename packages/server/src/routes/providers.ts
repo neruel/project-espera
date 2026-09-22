@@ -9,7 +9,7 @@ import { UserRepository } from '../db/repositories/user.repo.js';
 import { ProviderConnectionRepository } from '../db/repositories/provider-connection.repo.js';
 import { requestUserId } from '../auth/service.js';
 
-export function createProviderRoutes(db: D1Database, registry: ProviderRegistry) {
+export function createProviderRoutes(db: D1Database, registry: ProviderRegistry, credentialEncryptionKey?: string) {
   const router = new Hono();
   const userRepo = new UserRepository(db);
   const connectionRepo = new ProviderConnectionRepository(db);
@@ -70,6 +70,9 @@ export function createProviderRoutes(db: D1Database, registry: ProviderRegistry)
       status: body.status === 'error' ? 'error' : 'active',
       lastTestedAt: body.lastTestedAt || null,
       models: body.models.slice(0, 200).map((model: any) => ({ id: String(model.id), name: String(model.name || model.id), contextWindow: Number(model.contextWindow) || 0, supportsStreaming: model.supportsStreaming !== false })),
+      apiKey: typeof body.credential?.apiKey === 'string' ? body.credential.apiKey : undefined,
+      rememberCredential: body.rememberCredential === true,
+      masterKey: credentialEncryptionKey,
     });
     return c.json({ connection }, 201);
   });
@@ -79,6 +82,22 @@ export function createProviderRoutes(db: D1Database, registry: ProviderRegistry)
     await userRepo.ensureUser(userId, 'Espera User');
     const removed = await connectionRepo.remove(c.req.param('id'), userId);
     return removed ? c.body(null, 204) : c.json({ error: 'Connection not found' }, 404);
+  });
+
+  router.post('/connections/:id/validate', async (c) => {
+    const userId = requestUserId(c);
+    const id = c.req.param('id');
+    const providerId = await connectionRepo.getProviderId(id, userId);
+    if (!providerId) return c.json({ error: 'Connection not found' }, 404);
+    try {
+      const credential = await connectionRepo.getCredential(id, userId, credentialEncryptionKey);
+      if (!credential?.apiKey) return c.json({ error: 'This connection has no encrypted credential. Enter the API key again.' }, 409);
+      const isValid = await registry.get(providerId).validateCredential(credential);
+      return c.json({ isValid, testedAt: new Date().toISOString() });
+    } catch (error) {
+      const providerError = error as ProviderError;
+      return c.json({ error: providerError.message || 'Connection validation failed' }, (providerError.status || 502) as ContentfulStatusCode);
+    }
   });
 
   return router;

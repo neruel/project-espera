@@ -94,10 +94,12 @@ export const CreateMemoryManualSchema = z.object({
 // Chat Schemas
 export const SendMessageSchema = z.object({
   conversationId: z.string().optional(),
+  connectionId: z.string().optional(),
   content: z.string().min(1),
   providerId: z.string(),
   modelId: z.string(),
   projectId: z.string().nullable().optional(),
+  regenerateFromMessageId: z.string().optional(),
   stream: z.boolean().default(true),
 });
 

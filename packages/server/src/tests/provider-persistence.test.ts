@@ -33,4 +33,20 @@ describe('Provider connection metadata persistence', () => {
     const afterDelete = await app.fetch(new Request('http://localhost/api/providers/connections'));
     expect((await afterDelete.json() as any).connections).toHaveLength(0);
   });
+
+  it('preserves an encrypted credential when connection metadata is edited without re-entering the key', async () => {
+    const masterKey = Buffer.alloc(32, 7).toString('base64');
+    const app = createApp(await createTestDatabase(), undefined, { credentialEncryptionKey: masterKey });
+    const createdResponse = await app.fetch(new Request('http://localhost/api/providers/connections', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Saved mock', providerId: 'mock', models: [{ id: 'mock-model-a', name: 'Mock', contextWindow: 100, supportsStreaming: true }], credential: { apiKey: 'saved-secret' }, rememberCredential: true }) }));
+    const created = await createdResponse.json() as any;
+    expect(created.connection.credentialStored).toBe(true);
+    const editedResponse = await app.fetch(new Request('http://localhost/api/providers/connections', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: created.connection.id, name: 'Renamed mock', providerId: 'mock', models: created.connection.models, rememberCredential: true }) }));
+    const edited = await editedResponse.json() as any;
+    expect(edited.connection.name).toBe('Renamed mock');
+    expect(edited.connection.credentialStored).toBe(true);
+    expect(JSON.stringify(edited)).not.toContain('saved-secret');
+    const validation = await app.fetch(new Request(`http://localhost/api/providers/connections/${created.connection.id}/validate`, { method: 'POST' }));
+    expect(validation.status).toBe(200);
+    expect((await validation.json() as any).isValid).toBe(true);
+  });
 });

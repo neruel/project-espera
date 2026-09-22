@@ -37,7 +37,7 @@ export class ContextRunRepository {
          FROM context_runs cr
          JOIN conversations c ON c.id = cr.conversation_id
          WHERE cr.conversation_id = ?${userId ? ' AND c.user_id = ?' : ''}
-         ORDER BY cr.created_at DESC
+         ORDER BY cr.created_at DESC, cr.rowid DESC
          LIMIT 1`
       )
       .bind(...(userId ? [conversationId, userId] : [conversationId]))

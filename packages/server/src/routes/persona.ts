@@ -27,6 +27,18 @@ export function createPersonaRoutes(db: D1Database) {
     return c.json({ revisions });
   });
 
+  router.post('/revisions/:version/restore', async (c) => {
+    const userId = requestUserId(c);
+    const version = Number(c.req.param('version'));
+    if (!Number.isInteger(version) || version < 1) return c.json({ error: 'A valid revision version is required' }, 400);
+    try {
+      const persona = await personaRepo.restoreRevision(userId, version);
+      return c.json({ persona });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : 'Persona revision could not be restored' }, 404);
+    }
+  });
+
   // PUT /api/persona
   router.put('/', async (c) => {
     const userId = requestUserId(c);

@@ -19,17 +19,23 @@ export function createMemoryRoutes(db: D1Database) {
   // GET /api/memories (list with filters)
   router.get('/', async (c) => {
     const userId = requestUserId(c);
-    const status = c.req.query('status') as any;
-    const type = c.req.query('type') as any;
-    const projectId = c.req.query('projectId') ?? null;
+    const statusRaw = c.req.query('status');
+    const typeRaw = c.req.query('type');
+    const statuses = ['pending','active','superseded','retracted','rejected','expired','deleted'];
+    const types = ['fact','preference','constraint','goal','project','relationship'];
+    if (statusRaw && !statuses.includes(statusRaw)) return c.json({ error: 'Invalid memory status' }, 400);
+    if (typeRaw && !types.includes(typeRaw)) return c.json({ error: 'Invalid memory type' }, 400);
+    const projectParam = c.req.query('projectId');
+    const projectId = projectParam === 'global' ? null : projectParam;
+    const limit = Math.min(Math.max(Number(c.req.query('limit')) || 50, 1), 100);
+    const offset = Math.max(Number(c.req.query('offset')) || 0, 0);
+    const sortRaw = c.req.query('sort');
+    const sort = sortRaw === 'confidence' || sortRaw === 'updated' ? sortRaw : 'importance';
+    const query = (c.req.query('q') || '').trim().slice(0, 200);
 
-    const memories = await memoryRepo.getMemories(userId, {
-      status,
-      type,
-      projectId,
-    });
+    const rows = await memoryRepo.getMemories(userId, { status: statusRaw as any, type: typeRaw as any, ...(projectParam !== undefined ? { projectId } : {}), query, limit: limit + 1, offset, sort, history: c.req.query('view') === 'history' });
 
-    return c.json({ memories });
+    return c.json({ memories: rows.slice(0, limit), hasMore: rows.length > limit, offset, limit });
   });
 
   // POST /api/memories (create manual memory directly as active)
@@ -55,7 +61,7 @@ export function createMemoryRoutes(db: D1Database) {
     });
 
     // Manually created memories are immediately activated
-    const activated = await memoryRepo.approveMemory(created.id, 'Manually created by user', 'user');
+    const activated = await memoryRepo.approveMemory(created.id, userId, 'Manually created by user', 'user');
     return c.json({ memory: activated }, 201);
   });
 
@@ -63,13 +69,13 @@ export function createMemoryRoutes(db: D1Database) {
   router.get('/:id', async (c) => {
     const userId = requestUserId(c);
     const id = c.req.param('id');
-    const memory = await memoryRepo.getMemoryById(id);
+    const memory = await memoryRepo.getMemoryById(id, userId);
     if (!memory) {
       return c.json({ error: 'Memory not found' }, 404);
     }
 
-    const revisions = await memoryRepo.getRevisions(id);
-    const evidence = await memoryRepo.getEvidence(id);
+    const revisions = await memoryRepo.getRevisions(id, userId);
+    const evidence = await memoryRepo.getEvidence(id, userId);
 
     return c.json({ memory, revisions, evidence });
   });
@@ -83,7 +89,7 @@ export function createMemoryRoutes(db: D1Database) {
     const reason = parsed.success ? parsed.data.changeReason : 'Approved by user';
 
     try {
-      const updated = await memoryRepo.approveMemory(id, reason, 'user');
+      const updated = await memoryRepo.approveMemory(id, userId, reason, 'user');
       return c.json({ memory: updated });
     } catch (err: any) {
       return c.json({ error: err.message }, 400);
@@ -103,6 +109,7 @@ export function createMemoryRoutes(db: D1Database) {
     try {
       const updated = await memoryRepo.editAndApproveMemory(
         id,
+        userId,
         {
           canonicalText: parsed.data.canonicalText,
           importance: parsed.data.importance,
@@ -126,7 +133,7 @@ export function createMemoryRoutes(db: D1Database) {
     const reason = parsed.success ? parsed.data.reason : 'Rejected by user';
 
     try {
-      const updated = await memoryRepo.rejectMemory(id, reason, 'user');
+      const updated = await memoryRepo.rejectMemory(id, userId, reason, 'user');
       return c.json({ memory: updated });
     } catch (err: any) {
       return c.json({ error: err.message }, 400);
@@ -141,10 +148,11 @@ export function createMemoryRoutes(db: D1Database) {
 
     try {
       if (mode === 'hard') {
-        await memoryRepo.hardDeleteMemory(id);
+        const deleted = await memoryRepo.hardDeleteMemory(id, userId);
+        if (!deleted) return c.json({ error: 'Memory not found' }, 404);
         return c.json({ success: true, mode: 'hard' });
       } else {
-        const updated = await memoryRepo.softDeleteMemory(id, 'Soft deleted by user', 'user');
+        const updated = await memoryRepo.softDeleteMemory(id, userId, 'Soft deleted by user', 'user');
         return c.json({ success: true, mode: 'soft', memory: updated });
       }
     } catch (err: any) {

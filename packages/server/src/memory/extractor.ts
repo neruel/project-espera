@@ -15,7 +15,8 @@ export class MemoryExtractor {
     userMessage: string,
     assistantMessage: string,
     provider: LLMProvider,
-    credential?: ProviderCredential
+    credential?: ProviderCredential,
+    modelId?: string
   ): Promise<MemoryCandidate[]> {
     try {
       // MockProvider deterministic path for automated testing & offline execution
@@ -24,7 +25,7 @@ export class MemoryExtractor {
       }
 
       // Real LLM provider extraction with structured schema
-      return await this.extractWithLLM(userMessage, assistantMessage, provider, credential);
+      return await this.extractWithLLM(userMessage, assistantMessage, provider, credential, modelId);
     } catch (err) {
       console.error('[MemoryExtractor] Extraction failed safely (chat not impacted):', err);
       return [];
@@ -71,7 +72,8 @@ export class MemoryExtractor {
     userMessage: string,
     assistantMessage: string,
     provider: LLMProvider,
-    credential?: ProviderCredential
+    credential?: ProviderCredential,
+    modelId?: string
   ): Promise<MemoryCandidate[]> {
     const systemPrompt = `You are the Espera Memory Extraction Engine.
 Analyze the user message and extract long-term facts, ongoing projects, preferences, and technical constraints.
@@ -98,9 +100,14 @@ RULES:
   ]
 }`;
 
+    // Reuse the model the turn already ran on. listModels() needs the credential and
+    // returns [] without it, so it can only ever be a fallback, never the default.
+    const extractionModelId = modelId || (await provider.listModels(credential))[0]?.id;
+    if (!extractionModelId) return [];
+
     const promptText = `User: ${userMessage}\nAssistant: ${assistantMessage}`;
     const response = await provider.generate({
-      modelId: (await provider.listModels())[0].id,
+      modelId: extractionModelId,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: promptText },

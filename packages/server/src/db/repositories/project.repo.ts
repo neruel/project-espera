@@ -1,4 +1,4 @@
-import type { Project } from '@espera/shared';
+import type { Conversation, Memory, Project } from '@espera/shared';
 import type { D1Database } from '../d1-interface.js';
 
 export class ProjectRepository {
@@ -31,5 +31,12 @@ export class ProjectRepository {
     if (!existing) return false;
     await this.db.prepare('DELETE FROM projects WHERE id = ? AND user_id = ?').bind(id, userId).run();
     return true;
+  }
+
+  async contents(id: string, userId: string): Promise<{ conversations: Conversation[]; memories: Memory[] } | null> {
+    if (!(await this.get(id, userId))) return null;
+    const conversations = await this.db.prepare(`SELECT id, user_id as userId, project_id as projectId, title, created_at as createdAt, updated_at as updatedAt FROM conversations WHERE project_id = ? AND user_id = ? ORDER BY updated_at DESC`).bind(id, userId).all<Conversation>();
+    const memories = await this.db.prepare(`SELECT id, user_id as userId, project_id as projectId, type, subject, predicate, value_json as valueJson, canonical_text as canonicalText, source_kind as sourceKind, confidence, importance, sensitivity, status, valid_from as validFrom, valid_until as validUntil, created_at as createdAt, updated_at as updatedAt FROM memories WHERE project_id = ? AND user_id = ? AND status != 'deleted' ORDER BY updated_at DESC`).bind(id, userId).all<Memory>();
+    return { conversations: conversations.results || [], memories: memories.results || [] };
   }
 }

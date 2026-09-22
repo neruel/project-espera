@@ -1,0 +1,54 @@
+# Project Espera — Claude Code 분석 제외 목록
+# 목적: generated/build output, 로컬 DB, 캐시를 읽어 토큰을 소모하는 것을 막는다.
+# repo 루트에 .claudeignore 로 배치. (툴 버전에 따라 무시될 수 있으므로
+#  CLAUDE.md §3 의 동일 목록이 실질적 방어선이다.)
+
+# 의존성
+node_modules/
+**/node_modules/
+package-lock.json
+
+# 빌드 산출물 (소스와 중복 — 절대 읽지 말 것)
+dist/
+packages/client/dist/
+packages/server/dist/
+packages/shared/dist/
+build/
+**/*.map
+**/*.tsbuildinfo
+
+# 잘못 생성된 빈 중첩 디렉터리 (삭제 후보)
+packages/server/packages/
+
+# 로컬 런타임 / 캐시 / 로컬 DB
+.wrangler/
+packages/server/.wrangler/
+.data/
+packages/server/.data/
+**/*.sqlite
+**/*.sqlite-shm
+**/*.sqlite-wal
+.vite/
+.cache/
+
+# 테스트·커버리지 산출물
+test-results/
+playwright-report/
+coverage/
+**/*.log
+
+# 비밀
+.env
+.env.*
+!.env.example
+
+# 바이너리/자산
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.gif
+**/*.webp
+**/*.ico
+**/*.woff
+**/*.woff2
+**/*.zip

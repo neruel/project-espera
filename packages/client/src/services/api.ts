@@ -50,14 +50,17 @@ export interface PersistedProviderConnection {
   models: ModelDescriptor[];
   createdAt: string;
   updatedAt: string;
+  credentialStored?: boolean;
 }
 
 export interface StreamChatParams {
   conversationId?: string;
+  connectionId?: string;
   content: string;
   providerId: string;
   modelId: string;
   projectId?: string | null;
+  regenerateFromMessageId?: string;
   credential?: { apiKey: string; endpointUrl?: string };
   onDelta: (delta: string) => void;
   onDone: (data: { conversationId: string; messageId: string; contextRunId: string; newPendingMemoriesCount: number }) => void;
@@ -100,10 +103,25 @@ export const api = {
     const res = await request(`${BASE_URL}/api/projects/${encodeURIComponent(id)}`, { method: 'DELETE' });
     if (!res.ok) throw new Error('Project could not be deleted');
   },
+
+  async updateProject(id: string, input: { name: string; description: string; status: Project['status'] }): Promise<Project> {
+    const res = await request(`${BASE_URL}/api/projects/${encodeURIComponent(id)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Project could not be updated');
+    return data.project;
+  },
+
+  async getProjectContents(id: string): Promise<{ conversations: Conversation[]; memories: Memory[] }> {
+    const res = await request(`${BASE_URL}/api/projects/${encodeURIComponent(id)}/contents`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Project contents could not be loaded');
+    return { conversations: data.conversations || [], memories: data.memories || [] };
+  },
   // Conversations
   async getConversations(): Promise<Conversation[]> {
     const res = await request(`${BASE_URL}/api/conversations`);
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Conversations could not be loaded');
     return data.conversations || [];
   },
 
@@ -114,18 +132,49 @@ export const api = {
       body: JSON.stringify({ title: title || 'New Conversation', projectId }),
     });
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Conversation could not be created');
     return data.conversation;
   },
 
   async getMessages(conversationId: string): Promise<Message[]> {
-    const res = await request(`${BASE_URL}/api/conversations/${conversationId}/messages`);
+    const result = await this.getMessagesPage(conversationId);
+    return result.messages;
+  },
+
+  async getMessagesPage(conversationId: string, offset = 0, limit = 50): Promise<{ messages: Message[]; hasMore: boolean }> {
+    const query = new URLSearchParams({ offset: String(offset), limit: String(limit) });
+    const res = await request(`${BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}/messages?${query}`);
     const data = await res.json();
-    return data.messages || [];
+    if (!res.ok) throw new Error(data.error || 'Messages could not be loaded');
+    return { messages: data.messages || [], hasMore: Boolean(data.hasMore) };
+  },
+
+  async updateConversationProject(conversationId: string, projectId: string | null): Promise<Conversation> {
+    const res = await request(`${BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}/project`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Conversation scope could not be updated');
+    return data.conversation;
+  },
+
+  async updateConversationTitle(conversationId: string, title: string): Promise<Conversation> {
+    const res = await request(`${BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}/title`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Conversation title could not be updated');
+    return data.conversation;
   },
 
   async deleteConversation(conversationId: string): Promise<void> {
     const res = await request(`${BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}`, { method: 'DELETE' });
     if (!res.ok) throw new Error('Conversation could not be deleted');
+  },
+
+  async deleteMessage(conversationId: string, messageId: string): Promise<void> {
+    const res = await request(`${BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Message could not be deleted');
   },
 
   // Streaming Chat
@@ -143,10 +192,12 @@ export const api = {
       headers,
       body: JSON.stringify({
         conversationId: params.conversationId,
+        connectionId: params.connectionId,
         content: params.content,
         providerId: params.providerId,
         modelId: params.modelId,
         projectId: params.projectId,
+        regenerateFromMessageId: params.regenerateFromMessageId,
         stream: true,
       }),
       signal: params.signal,
@@ -204,27 +255,42 @@ export const api = {
 
   // Memories
   async getMemories(status?: string, type?: string): Promise<Memory[]> {
+    const page = await this.getMemoriesPage({ status, type });
+    return page.memories;
+  },
+
+  async getMemoriesPage(options: { status?: string; type?: string; projectId?: string; query?: string; sort?: 'updated'|'importance'|'confidence'; view?: 'history'; offset?: number; limit?: number } = {}): Promise<{ memories: Memory[]; hasMore: boolean }> {
     const query = new URLSearchParams();
-    if (status) query.set('status', status);
-    if (type) query.set('type', type);
+    if (options.status) query.set('status', options.status);
+    if (options.type) query.set('type', options.type);
+    if (options.projectId) query.set('projectId', options.projectId);
+    if (options.query) query.set('q', options.query);
+    if (options.sort) query.set('sort', options.sort);
+    if (options.view) query.set('view', options.view);
+    query.set('offset', String(options.offset || 0));
+    query.set('limit', String(options.limit || 50));
 
     const res = await request(`${BASE_URL}/api/memories?${query.toString()}`);
     const data = await res.json();
-    return data.memories || [];
+    if (!res.ok) throw new Error(data.error || 'Memories could not be loaded');
+    return { memories: data.memories || [], hasMore: Boolean(data.hasMore) };
   },
 
   async getMemoryDetails(id: string): Promise<{ memory: Memory; revisions: MemoryRevision[]; evidence: MemoryEvidence[] }> {
     const res = await request(`${BASE_URL}/api/memories/${id}`);
-    return await res.json();
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Memory details could not be loaded');
+    return data;
   },
 
   async approveMemory(id: string, changeReason?: string): Promise<Memory> {
     const res = await request(`${BASE_URL}/api/memories/${id}/approve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ changeReason: changeReason || 'Approved by user' }),
+      body: JSON.stringify({ action: 'approve', changeReason: changeReason || 'Approved by user' }),
     });
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Memory could not be approved');
     return data.memory;
   },
 
@@ -238,6 +304,7 @@ export const api = {
       body: JSON.stringify({ action: 'edit_and_approve', ...update }),
     });
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Memory could not be updated');
     return data.memory;
   },
 
@@ -245,16 +312,18 @@ export const api = {
     const res = await request(`${BASE_URL}/api/memories/${id}/reject`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason: reason || 'Rejected by user' }),
+      body: JSON.stringify({ action: 'reject', reason: reason || 'Rejected by user' }),
     });
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Memory could not be rejected');
     return data.memory;
   },
 
   async deleteMemory(id: string, mode: 'soft' | 'hard' = 'soft'): Promise<void> {
-    await request(`${BASE_URL}/api/memories/${id}?mode=${mode}`, {
+    const res = await request(`${BASE_URL}/api/memories/${id}?mode=${mode}`, {
       method: 'DELETE',
     });
+    if (!res.ok) { const data = await res.json().catch(() => ({})); throw new Error(data.error || 'Memory could not be archived'); }
   },
 
   async createMemory(data: {
@@ -271,6 +340,7 @@ export const api = {
       body: JSON.stringify(data),
     });
     const resData = await res.json();
+    if (!res.ok) throw new Error(resData.error || 'Memory could not be created');
     return resData.memory;
   },
 
@@ -278,12 +348,14 @@ export const api = {
   async getPersona(): Promise<Persona> {
     const res = await request(`${BASE_URL}/api/persona`);
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Persona could not be loaded');
     return data.persona;
   },
 
   async getPersonaRevisions(): Promise<PersonaRevision[]> {
     const res = await request(`${BASE_URL}/api/persona/revisions`);
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Persona history could not be loaded');
     return data.revisions || [];
   },
 
@@ -300,6 +372,14 @@ export const api = {
       body: JSON.stringify(payload),
     });
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Persona could not be updated');
+    return data.persona;
+  },
+
+  async restorePersonaRevision(version: number): Promise<Persona> {
+    const res = await request(`${BASE_URL}/api/persona/revisions/${version}/restore`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Persona revision could not be restored');
     return data.persona;
   },
 
@@ -307,6 +387,7 @@ export const api = {
   async getProviders(): Promise<ProviderInfo[]> {
     const res = await request(`${BASE_URL}/api/providers`);
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Providers could not be loaded');
     return data.providers || [];
   },
 
@@ -325,6 +406,7 @@ export const api = {
       }),
     });
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || data.error || 'Credential validation failed');
     return Boolean(data.isValid);
   },
 
@@ -341,6 +423,8 @@ export const api = {
     providerId: string;
     baseUrl?: string;
     models: ModelDescriptor[];
+    credential?: { apiKey: string; endpointUrl?: string };
+    rememberCredential?: boolean;
   }): Promise<PersistedProviderConnection> {
     const res = await request(`${BASE_URL}/api/providers/connections`, {
       method: 'POST',
@@ -360,10 +444,18 @@ export const api = {
     }
   },
 
+  async validateSavedProviderConnection(id: string): Promise<{ isValid: boolean; testedAt: string }> {
+    const res = await request(`${BASE_URL}/api/providers/connections/${encodeURIComponent(id)}/validate`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Connection validation failed');
+    return data;
+  },
+
   // Developer Context Inspector
   async getContextRun(conversationId: string): Promise<ContextRun | null> {
     const res = await request(`${BASE_URL}/api/inspector/${conversationId}`);
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Context could not be loaded');
     return data.contextRun || null;
   },
 };

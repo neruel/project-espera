@@ -52,6 +52,24 @@ export class ConversationRepository {
     return (result.meta?.changes ?? 0) > 0;
   }
 
+  async updateProject(id: string, userId: string, projectId: string | null): Promise<Conversation | null> {
+    const result = await this.db
+      .prepare("UPDATE conversations SET project_id = ?, updated_at = datetime('now') WHERE id = ? AND user_id = ?")
+      .bind(projectId, id, userId)
+      .run();
+    if ((result.meta?.changes ?? 0) === 0) return null;
+    return this.getConversation(id, userId);
+  }
+
+  async updateTitle(id: string, userId: string, title: string): Promise<Conversation | null> {
+    const result = await this.db
+      .prepare("UPDATE conversations SET title = ?, updated_at = datetime('now') WHERE id = ? AND user_id = ?")
+      .bind(title, id, userId)
+      .run();
+    if ((result.meta?.changes ?? 0) === 0) return null;
+    return this.getConversation(id, userId);
+  }
+
   async addMessage(msg: {
     id?: string;
     conversationId: string;
@@ -98,7 +116,31 @@ export class ConversationRepository {
     return row!;
   }
 
-  async getRecentMessages(conversationId: string, limit: number = 10): Promise<Message[]> {
+  async deleteMessage(id: string, conversationId: string): Promise<boolean> {
+    const result = await this.db
+      .prepare('DELETE FROM messages WHERE id = ? AND conversation_id = ?')
+      .bind(id, conversationId)
+      .run();
+    return (result.meta?.changes ?? 0) > 0;
+  }
+
+  async getMessage(id: string, conversationId: string): Promise<Message | null> {
+    return this.db.prepare(`SELECT id, conversation_id as conversationId, role, content, provider_id as providerId, model_id as modelId, token_count as tokenCount, created_at as createdAt FROM messages WHERE id = ? AND conversation_id = ?`)
+      .bind(id, conversationId).first<Message>();
+  }
+
+  async getPreviousUserMessage(messageId: string, conversationId: string): Promise<Message | null> {
+    return this.db.prepare(`SELECT id, conversation_id as conversationId, role, content, provider_id as providerId, model_id as modelId, token_count as tokenCount, created_at as createdAt FROM messages WHERE conversation_id = ? AND role = 'user' AND rowid < (SELECT rowid FROM messages WHERE id = ? AND conversation_id = ?) ORDER BY rowid DESC LIMIT 1`)
+      .bind(conversationId, messageId, conversationId).first<Message>();
+  }
+
+  async updateMessage(id: string, conversationId: string, input: { content: string; providerId?: string; modelId?: string }): Promise<Message> {
+    await this.db.prepare(`UPDATE messages SET content = ?, provider_id = ?, model_id = ? WHERE id = ? AND conversation_id = ?`)
+      .bind(input.content, input.providerId ?? null, input.modelId ?? null, id, conversationId).run();
+    return (await this.getMessage(id, conversationId))!;
+  }
+
+  async getRecentMessages(conversationId: string, limit: number = 10, offset: number = 0): Promise<Message[]> {
     const res = await this.db
       .prepare(
         `SELECT id, conversation_id as conversationId, role, content,
@@ -106,10 +148,10 @@ export class ConversationRepository {
                 created_at as createdAt
          FROM messages
          WHERE conversation_id = ?
-         ORDER BY created_at DESC
-         LIMIT ?`
+         ORDER BY created_at DESC, rowid DESC
+         LIMIT ? OFFSET ?`
       )
-      .bind(conversationId, limit)
+      .bind(conversationId, limit, offset)
       .all<Message>();
 
     // return in chronological order

@@ -20,7 +20,7 @@ export const LoginView: React.FC<{ auth: AuthState }> = ({ auth }) => {
           <div className="flex gap-3"><ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" /><p className="text-sm text-slate-300">Your account keeps your memory separate from every other user.</p></div>
         </div>
         {auth.configured ? (
-          <button onClick={() => api.loginWithGitHub()} className="w-full inline-flex items-center justify-center gap-3 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-slate-200 transition">
+          <button onClick={() => api.loginWithGitHub()} className="inline-flex w-full items-center justify-center gap-3 rounded-xl border border-neutral-600 bg-neutral-700 px-4 py-3 text-sm font-semibold text-neutral-100 transition hover:bg-neutral-600">
             <Github className="w-5 h-5" /> {t('auth.github')}
           </button>
         ) : (

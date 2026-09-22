@@ -26,6 +26,11 @@ export function createProjectRoutes(db: D1Database) {
     return c.json({ project: await projects.create(userId, name, description) }, 201);
   });
 
+  router.get('/:id/contents', async (c) => {
+    const contents = await projects.contents(c.req.param('id'), requestUserId(c));
+    return contents ? c.json(contents) : c.json({ error: 'Project not found' }, 404);
+  });
+
   router.put('/:id', async (c) => {
     const userId = requestUserId(c);
     const body: any = await c.req.json().catch(() => ({}));

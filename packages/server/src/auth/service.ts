@@ -90,18 +90,18 @@ export class AuthService {
     const state = url.searchParams.get('state');
     const code = url.searchParams.get('code');
     const storedState = cookieValue(request.headers.get('Cookie') || undefined, 'espera_oauth_state');
-    if (!state || !code || !storedState || state !== storedState) return new Response('Invalid OAuth state', { status: 400 });
+    if (!state || !code || !storedState || state !== storedState) return Response.json({ error: 'invalid_oauth_state' }, { status: 400 });
     const stateRow = await this.db.prepare(`SELECT state, redirect_uri as redirectUri FROM oauth_states WHERE state = ? AND expires_at > datetime('now')`).bind(state).first<{ state: string; redirectUri: string }>();
-    if (!stateRow) return new Response('Expired OAuth state', { status: 400 });
+    if (!stateRow) return Response.json({ error: 'expired_oauth_state' }, { status: 400 });
     await this.db.prepare('DELETE FROM oauth_states WHERE state = ?').bind(state).run();
-    if (!this.isConfigured()) return new Response('GitHub OAuth is not configured', { status: 503 });
+    if (!this.isConfigured()) return Response.json({ error: 'github_oauth_not_configured' }, { status: 503 });
 
     const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({ client_id: this.config.githubClientId, client_secret: this.config.githubClientSecret, code, redirect_uri: stateRow.redirectUri, state }),
     });
     const tokenData = await tokenResponse.json() as { access_token?: string; error?: string };
-    if (!tokenResponse.ok || !tokenData.access_token) return new Response('GitHub token exchange failed', { status: 502 });
+    if (!tokenResponse.ok || !tokenData.access_token) return Response.json({ error: 'github_token_exchange_failed' }, { status: 502 });
     const headers = {
       Authorization: `Bearer ${tokenData.access_token}`,
       Accept: 'application/vnd.github+json',
@@ -109,7 +109,7 @@ export class AuthService {
       'User-Agent': 'Project-Espera/1.0',
     };
     const profileResponse = await fetch('https://api.github.com/user', { headers });
-    if (!profileResponse.ok) return new Response('GitHub profile lookup failed', { status: 502 });
+    if (!profileResponse.ok) return Response.json({ error: 'github_profile_lookup_failed' }, { status: 502 });
     const profile = await profileResponse.json() as { id: number; login: string; name?: string; email?: string | null; avatar_url?: string };
     let email = profile.email || null;
     if (!email) {

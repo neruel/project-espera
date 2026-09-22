@@ -19,12 +19,14 @@ export class MemoryLifecycleCoordinator {
     assistantMessage: string;
     provider: LLMProvider;
     credential?: ProviderCredential;
+    modelId?: string;
   }): Promise<Memory[]> {
     const candidates = await this.extractor.extract(
       params.userMessage,
       params.assistantMessage,
       params.provider,
-      params.credential
+      params.credential,
+      params.modelId
     );
 
     if (candidates.length === 0) {

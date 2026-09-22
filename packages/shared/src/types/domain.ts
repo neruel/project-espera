@@ -118,6 +118,7 @@ export interface MemoryEvidence {
   memoryId: string;
   messageId: string;
   snippet: string;
+  conversationId?: string;
   createdAt: string;
 }
 

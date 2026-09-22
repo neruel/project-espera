@@ -12,7 +12,7 @@ import { createProjectRoutes } from './routes/projects.js';
 import { AuthService, type AuthConfig } from './auth/service.js';
 import { createAuthRoutes } from './routes/auth.js';
 
-export function createApp(db: D1Database, registry?: ProviderRegistry, options?: { allowedOrigin?: string } & AuthConfig) {
+export function createApp(db: D1Database, registry?: ProviderRegistry, options?: { allowedOrigin?: string; credentialEncryptionKey?: string } & AuthConfig) {
   const app = new Hono();
   const providerRegistry = registry ?? new ProviderRegistry();
   const auth = new AuthService(db, options);
@@ -22,7 +22,7 @@ export function createApp(db: D1Database, registry?: ProviderRegistry, options?:
     cors({
       origin: options?.allowedOrigin || '*',
       credentials: true,
-      allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowHeaders: ['Content-Type', 'Authorization', 'X-Espera-Credential'],
     })
   );
@@ -53,16 +53,16 @@ export function createApp(db: D1Database, registry?: ProviderRegistry, options?:
 
   app.route('/api/auth', createAuthRoutes(db, options || {}));
 
-  app.route('/api/chat', createChatRoutes(db, providerRegistry));
+  app.route('/api/chat', createChatRoutes(db, providerRegistry, options?.credentialEncryptionKey));
   app.route('/api/conversations', createConversationRoutes(db));
   app.route('/api/memories', createMemoryRoutes(db));
   app.route('/api/persona', createPersonaRoutes(db));
-  app.route('/api/providers', createProviderRoutes(db, providerRegistry));
+  app.route('/api/providers', createProviderRoutes(db, providerRegistry, options?.credentialEncryptionKey));
   app.route('/api/inspector', createInspectorRoutes(db));
   app.route('/api/projects', createProjectRoutes(db));
 
   app.onError((err, c) => {
-    console.error('[App Error]', err instanceof Error ? err.name : 'unknown_error');
+    console.error('[App Error]', err instanceof Error ? err.name : 'unknown_error', err instanceof Error ? err.message : '');
     return c.json(
       {
         error: 'Internal Server Error',

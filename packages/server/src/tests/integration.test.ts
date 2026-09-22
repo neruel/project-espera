@@ -4,6 +4,8 @@ import type { D1Database } from '../db/d1-interface.js';
 import { createApp } from '../app.js';
 import { ProviderRegistry } from '../providers/registry.js';
 import { MemoryRepository } from '../db/repositories/memory.repo.js';
+import { UserRepository } from '../db/repositories/user.repo.js';
+import { ConversationRepository } from '../db/repositories/conversation.repo.js';
 
 describe('Integration Tests - 10-Step Core Loop Scenario with MockProvider', () => {
   let db: D1Database;
@@ -180,5 +182,82 @@ describe('Integration Tests - 10-Step Core Loop Scenario with MockProvider', () 
     expect(chatData3.message.content).toContain('기억된 컨텍스트에 따르면');
     expect(chatData3.message.content).toContain('[Project Espera]');
     expect(chatData2.message.content).not.toBe(chatData3.message.content); // Model B phrasing is analytical, Model A is concise
+  });
+
+  it('rejects attempts to append a message to another user conversation', async () => {
+    await new UserRepository(db).ensureUser('other_user', 'Other User');
+    const foreignConversation = await new ConversationRepository(db).createConversation('other_user', 'Private');
+    const response = await app.fetch(new Request('http://localhost/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversationId: foreignConversation.id, content: 'intrusion', providerId: 'mock', modelId: 'mock-model-a', stream: false }),
+    }));
+    expect(response.status).toBe(404);
+    expect(await new ConversationRepository(db).getRecentMessages(foreignConversation.id, 10)).toHaveLength(0);
+  });
+
+  it('paginates long conversations without gaps or duplicates', async () => {
+    await new UserRepository(db).ensureUser('user_default', 'Default User');
+    const repo = new ConversationRepository(db);
+    const conversation = await repo.createConversation('user_default', 'Long thread');
+    for (let index = 0; index < 55; index++) await repo.addMessage({ conversationId: conversation.id, role: 'user', content: `message-${index}` });
+    const firstResponse = await app.fetch(new Request(`http://localhost/api/conversations/${conversation.id}/messages?limit=50`));
+    const first = await firstResponse.json() as { messages: Array<{ id: string }>; hasMore: boolean };
+    const secondResponse = await app.fetch(new Request(`http://localhost/api/conversations/${conversation.id}/messages?limit=50&offset=50`));
+    const second = await secondResponse.json() as { messages: Array<{ id: string }>; hasMore: boolean };
+    expect(first.messages).toHaveLength(50);
+    expect(first.hasMore).toBe(true);
+    expect(second.messages).toHaveLength(5);
+    expect(second.hasMore).toBe(false);
+    expect(new Set([...first.messages, ...second.messages].map((message) => message.id)).size).toBe(55);
+  });
+
+  it('regenerates an assistant message in place and supports owned message deletion', async () => {
+    const first = await app.fetch(new Request('http://localhost/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: 'regenerate this', providerId: 'mock', modelId: 'mock-model-a', stream: false }) }));
+    const created = await first.json() as any;
+    const before = await app.fetch(new Request(`http://localhost/api/conversations/${created.conversationId}/messages`));
+    const originalMessages = (await before.json() as any).messages;
+    const assistant = originalMessages.find((message: any) => message.role === 'assistant');
+    const regeneratedResponse = await app.fetch(new Request('http://localhost/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ conversationId: created.conversationId, content: 'ignored in favor of source', providerId: 'mock', modelId: 'mock-model-b', regenerateFromMessageId: assistant.id, stream: false }) }));
+    const regenerated = await regeneratedResponse.json() as any;
+    expect(regenerated.message.id).toBe(assistant.id);
+    expect(regenerated.message.modelId).toBe('mock-model-b');
+    const after = await app.fetch(new Request(`http://localhost/api/conversations/${created.conversationId}/messages`));
+    expect((await after.json() as any).messages).toHaveLength(2);
+    const deleted = await app.fetch(new Request(`http://localhost/api/conversations/${created.conversationId}/messages/${assistant.id}`, { method: 'DELETE' }));
+    expect(deleted.status).toBe(204);
+  });
+
+  it('rejects malformed session credentials before storing a message', async () => {
+    const response = await app.fetch(new Request('http://localhost/api/chat', { method: 'POST', headers: { 'content-type': 'application/json', 'x-espera-credential': '{broken' }, body: JSON.stringify({ content: 'must not persist', providerId: 'mock', modelId: 'mock-model-a', stream: false }) }));
+    expect(response.status).toBe(400);
+    const conversationsResponse = await app.fetch(new Request('http://localhost/api/conversations'));
+    expect((await conversationsResponse.json() as any).conversations).toHaveLength(0);
+  });
+
+  it('rejects an unknown provider with 400 and persists nothing', async () => {
+    const response = await app.fetch(new Request('http://localhost/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: 'must not persist', providerId: 'not-a-provider', modelId: 'x', stream: false }) }));
+    expect(response.status).toBe(400);
+    const conversationsResponse = await app.fetch(new Request('http://localhost/api/conversations'));
+    expect((await conversationsResponse.json() as any).conversations).toHaveLength(0);
+  });
+
+  it('keeps a project-scoped conversation usable across consecutive turns', async () => {
+    const projectResponse = await app.fetch(new Request('http://localhost/api/projects', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Scoped', description: 'scope test' }) }));
+    const projectId = (await projectResponse.json() as any).project.id;
+
+    const firstResponse = await app.fetch(new Request('http://localhost/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: 'first turn', providerId: 'mock', modelId: 'mock-model-a', projectId, stream: false }) }));
+    expect(firstResponse.status).toBe(200);
+    const conversationId = (await firstResponse.json() as any).conversationId;
+
+    // The client must keep sending the stored scope; dropping it to null is a 409.
+    const secondResponse = await app.fetch(new Request('http://localhost/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ conversationId, content: 'second turn', providerId: 'mock', modelId: 'mock-model-a', projectId, stream: false }) }));
+    expect(secondResponse.status).toBe(200);
+
+    const mismatched = await app.fetch(new Request('http://localhost/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ conversationId, content: 'wrong scope', providerId: 'mock', modelId: 'mock-model-a', projectId: null, stream: false }) }));
+    expect(mismatched.status).toBe(409);
+
+    const listed = await app.fetch(new Request('http://localhost/api/conversations'));
+    expect((await listed.json() as any).conversations.find((item: any) => item.id === conversationId).projectId).toBe(projectId);
   });
 });

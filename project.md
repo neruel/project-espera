@@ -89,11 +89,11 @@ AI의 대화 방식, 어조, 행동 원칙입니다. Memory와 분리되어 있�
 
 ```text
 Persona + Project context + 관련 active Memory
-       + Conversation summary + 최근 Message + 현재 요청
+       + 최근 Message + 현재 요청
        → Provider request
 ```
 
-Context Inspector는 선택된 Memory와 선택 이유, Persona version, Provider, Model, 길이 추정치를 보여줍니다. API Key와 authorization header는 포함하지 않습니다.
+긴 Conversation은 최근 메시지를 원문으로 유지하고 오래된 구간을 길이 제한이 있는 extractive summary로 압축합니다. 이 summary는 비신뢰 대화 기록으로 표시되어 내부의 명령형 문장을 system instruction으로 취급하지 않습니다. Context Inspector는 summary를 포함한 prompt 구성, 선택된 Memory와 선택 이유, Persona version, Provider, Model, 길이 추정치를 보여줍니다. API Key와 authorization header는 포함하지 않습니다.
 
 ## 6. Provider abstraction
 
@@ -111,20 +111,20 @@ getCapabilities
 
 ## 7. BYOK 보안
 
-사용자 API Key의 기본 lifecycle은 다음과 같습니다.
+사용자 API Key의 기본 lifecycle은 다음과 같습니다. 사용자가 명시적으로 저장을 선택한 경우에는 Worker Secret 기반 암호화 저장 경로를 사용합니다.
 
 ```text
-입력 → 현재 탭 메모리 → 요청 header → Provider Adapter → 폐기
+입력 → 현재 탭 메모리 또는 암호화 저장 → 요청 header/서버 복호화 → Provider Adapter
 ```
 
-API Key는 D1, localStorage, sessionStorage, URL, 로그, Context run, Inspector에 저장하지 않습니다. Provider connection에는 이름, Provider type, Base URL, model catalog 같은 metadata만 저장합니다.
+저장하지 않는 기본 모드에서는 API Key가 D1, localStorage, sessionStorage, URL, 로그, Context run, Inspector에 저장되지 않습니다. 저장 모드를 선택하면 D1에는 AES-GCM ciphertext, nonce, version만 저장되고 원본 Key는 API 응답에 포함되지 않습니다. Provider connection에는 이름, Provider type, Base URL, model catalog 같은 metadata도 함께 저장합니다.
 
 ## 8. 데이터 격리
 
-모든 repository는 `userId`를 필수 scope로 사용합니다.
+모든 repository와 resource mutation route는 `userId`를 필수 scope로 사용해야 합니다. Memory 상세 조회·상태 변경·삭제·evidence·revision 조회에도 owner 검증을 적용합니다.
 
 - 다른 사용자의 Conversation과 Message를 조회할 수 없습니다.
-- 다른 사용자의 Memory와 Evidence를 조회할 수 없습니다.
+- 다른 사용자의 Memory와 Evidence를 조회하거나 변경할 수 없습니다.
 - 다른 사용자의 Persona와 Project를 수정할 수 없습니다.
 - 다른 사용자의 Provider metadata를 조회할 수 없습니다.
 
@@ -155,7 +155,7 @@ packages/client/src/
 Desktop에서는 상단 navigation과 좌측 conversation sidebar를 사용합니다. 모바일에서는 conversation sidebar가 drawer로 전환되고 backdrop을 눌러 닫을 수 있습니다.
 
 - 모바일에서 대화 목록은 overlay drawer입니다.
-- 모델 선택 영역은 작은 viewport에서 폭을 제한합니다.
+- 모바일의 Project, Provider, Model 선택은 별도 bottom sheet로 제공됩니다.
 - Chat composer는 화면 폭에 맞게 축소됩니다.
 - Memory와 Project 카드는 단일 열로 전환됩니다.
 - Settings form은 모바일에서 한 열로 전환됩니다.
@@ -164,9 +164,9 @@ Desktop에서는 상단 navigation과 좌측 conversation sidebar를 사용합�
 
 - GitHub OAuth secret은 Cloudflare secret입니다.
 - session token은 hash만 D1에 저장합니다.
-- API Key는 session-only입니다.
+- API Key는 기본적으로 session-only이며 사용자가 선택한 경우 Worker master secret으로 AES-GCM 암호화해 저장합니다.
 - CORS는 production frontend origin으로 제한합니다.
-- endpoint URL은 SSRF 정책 검사를 통과해야 합니다.
+- endpoint URL은 공통 검증과 redirect 차단을 거쳐야 하며, 임의 custom host에 대한 DNS rebinding 방어는 Worker 환경의 한계로 완전하지 않습니다.
 - Provider 오류는 정규화하고 credential을 redaction합니다.
 - Context Inspector는 인증정보를 표시하지 않습니다.
 

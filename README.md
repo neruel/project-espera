@@ -29,7 +29,7 @@ Memory는 자동으로 즉시 확정되지 않습니다.
 - Mock, OpenAI, Anthropic, Gemini, OpenAI-compatible Provider
 - Provider별 모델 목록 조회와 수동 모델 ID
 - 사용자가 직접 입력하는 API Key(BYOK)
-- API Key의 탭 메모리 보관 정책
+- API Key의 탭 메모리 보관 및 선택적 계정 암호화 저장
 - Pending / Active / Rejected / Superseded / Deleted Memory
 - Memory evidence와 revision history
 - Persona 버전과 변경 이력
@@ -75,9 +75,17 @@ npm run test:e2e
 
 ## Provider와 API Key
 
-Settings에서 Provider, 연결 이름, Base URL, API Key를 입력합니다. API Key는 D1, Web Storage, URL, 로그, Context Inspector에 저장하지 않으며 현재 브라우저 탭에서만 사용합니다.
+Settings에서 Provider, 연결 이름, Base URL, API Key를 입력합니다. 기본 모드에서는 API Key를 D1, Web Storage, URL, 로그, Context Inspector에 저장하지 않으며 현재 브라우저 탭에서만 사용합니다.
 
 새로고침하면 연결 metadata는 유지되지만 API Key는 다시 입력해야 합니다.
+
+Settings에서 “계정에 API Key 기억하기”를 선택하면 API Key를 Worker 전용 Master Key로 AES-GCM 암호화하여 Provider connection과 함께 저장할 수 있습니다. 원본 Key는 API 응답이나 D1 조회 결과에 포함되지 않습니다. 이 기능을 사용하려면 Cloudflare Secret에 32바이트 Base64 키를 등록해야 합니다.
+
+```bash
+npx wrangler secret put ESPERA_MASTER_ENCRYPTION_KEY
+```
+
+저장된 Key는 로그인된 사용자의 Chat 요청에서만 복호화됩니다. Master Key를 분실하면 저장된 Provider Key를 복구할 수 없으므로 운영 전 별도 보관 정책이 필요합니다.
 
 ## 로그인 설정
 
@@ -126,6 +134,21 @@ npx wrangler pages deploy packages/client/dist --project-name project-espera-web
 ## 알려진 제한
 
 - OAuth 로그인은 현재 GitHub provider만 지원합니다.
-- API Key는 새로고침 후 재입력이 필요합니다.
+- API Key는 기본적으로 새로고침 후 재입력이 필요하며, 사용자가 선택하면 암호화 저장할 수 있습니다.
 - Memory 검색은 현재 D1 키워드 검색 중심입니다.
 - 실제 Provider live test는 별도 API Key와 비용이 발생할 수 있으므로 opt-in입니다.
+
+## 현재 UX
+
+- Chat은 안전한 Markdown, 코드·표·링크, 메시지 복사·삭제·재생성, 중단·재시도와 이전 메시지 pagination을 지원합니다.
+- 긴 대화는 오래된 구간을 비신뢰 extractive summary로 압축하고 최근 메시지는 원문으로 유지합니다.
+- Memory는 서버 검색·유형·프로젝트·정렬 필터, 승인 영향 안내, evidence와 revision 감사를 제공합니다.
+- Provider connection은 수정·재검증할 수 있고 저장된 암호화 Key를 수정 중 안전하게 유지합니다.
+- 모바일에서는 Project·Provider·Model을 전용 bottom sheet에서 선택합니다.
+- Persona revision은 비교하고 이전 버전을 새 revision으로 복원할 수 있습니다.
+
+Embedding 기반 semantic search, Vision, Tool calling은 Provider별 비용·권한·데이터 전송 정책이 필요한 선택적 확장 기능이며 현재 완성 범위에는 포함하지 않습니다.
+
+## 운영 smoke test
+
+`npm run test:production`은 Secret 없이 health, CORS, 인증 경계를 검증합니다. 인증된 데이터 흐름까지 검사하려면 임시 운영 세션을 `ESPERA_SESSION_COOKIE`로 전달합니다. 실제 Provider 모델 조회는 `ESPERA_LIVE_TESTS=1`일 때만 `npm run test:live`로 실행되며 최대 3회, 텍스트 생성 0회로 제한됩니다.

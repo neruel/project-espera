@@ -11,7 +11,7 @@ async function start() {
   setInterval(persist,1000);
   process.on('SIGINT',()=>{persist();process.exit(0);});
   process.on('SIGTERM',()=>{persist();process.exit(0);});
-  const app = createApp(db);
+  const app = createApp(db, undefined, { credentialEncryptionKey: process.env.ESPERA_MASTER_ENCRYPTION_KEY });
 
   console.log(`[Espera] Local Server Engine booted successfully on http://127.0.0.1:${port}`);
   serve({

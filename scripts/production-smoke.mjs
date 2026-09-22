@@ -1,11 +1,13 @@
 const api = process.env.ESPERA_API_URL;
+const sessionCookie = process.env.ESPERA_SESSION_COOKIE;
 if (!api) {
   console.error('ESPERA_API_URL is required');
   process.exit(2);
 }
 
 async function request(path, init = {}) {
-  const response = await fetch(`${api}${path}`, init);
+  const headers = { ...(init.headers || {}), ...(sessionCookie ? { cookie: sessionCookie } : {}) };
+  const response = await fetch(`${api}${path}`, { ...init, headers });
   const text = await response.text();
   let body = {};
   try { body = text ? JSON.parse(text) : {}; } catch { body = { text }; }
@@ -22,6 +24,13 @@ try {
   const cors = await fetch(`${api}/api/health`, { headers: { Origin: 'https://project-espera-web.pages.dev' } });
   if (cors.headers.get('access-control-allow-origin') !== 'https://project-espera-web.pages.dev') throw new Error('production CORS origin mismatch');
 
+  if (!sessionCookie) {
+    const protectedResponse = await fetch(`${api}/api/projects`);
+    if (protectedResponse.status !== 401) throw new Error(`protected API returned ${protectedResponse.status} without a session`);
+    console.log(JSON.stringify({ health: health.response.status, cors: cors.status, authenticationBoundary: true, authenticatedChecks: 'skipped_without_ESPERA_SESSION_COOKIE' }));
+    process.exit(0);
+  }
+
   const project = await request('/api/projects', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: `Smoke ${Date.now()}`, description: 'automated production smoke scope' }) });
   projectId = project.body.project.id;
 
@@ -35,6 +44,7 @@ try {
   if (!inspector.body.contextRun.assembledPrompt.includes('automated production smoke scope')) throw new Error('project context was not included');
   console.log(JSON.stringify({ health: health.response.status, cors: cors.status, projectContext: true, credentialRedacted: true }));
 } finally {
-  if (connectionId) await fetch(`${api}/api/providers/connections/${connectionId}`, { method: 'DELETE' });
-  if (projectId) await fetch(`${api}/api/projects/${projectId}`, { method: 'DELETE' });
+  const headers = sessionCookie ? { cookie: sessionCookie } : {};
+  if (connectionId) await fetch(`${api}/api/providers/connections/${connectionId}`, { method: 'DELETE', headers });
+  if (projectId) await fetch(`${api}/api/projects/${projectId}`, { method: 'DELETE', headers });
 }

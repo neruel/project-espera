@@ -1,15 +1,193 @@
-import React, { useEffect, useState } from 'react';
-import { Database, Eye, Layers, ShieldCheck, Terminal, X } from 'lucide-react';
-import type { ContextRun } from '@espera/shared';
-import { api } from '../../services/api.js';
-import { useLanguage } from '../../i18n.js';
+import React, { useEffect, useState } from "react";
+import { Database, Eye, Layers, ShieldCheck, Terminal, X } from "lucide-react";
+import type { ContextRun } from "@espera/shared";
+import { api } from "../../services/api.js";
+import { useLanguage } from "../../i18n.js";
+import { useDialogAccessibility } from "../Common/useDialogAccessibility.js";
 
-interface ContextInspectorModalProps { conversationId: string | null; isOpen: boolean; onClose: () => void; }
-export const ContextInspectorModal: React.FC<ContextInspectorModalProps> = ({ conversationId, isOpen, onClose }) => {
-  const { t } = useLanguage(); const [run, setRun] = useState<ContextRun | null>(null); const [loading, setLoading] = useState(false); const [showFullPrompt, setShowFullPrompt] = useState(false);
-  useEffect(() => { if (!isOpen) return; setRun(null); if (conversationId) void load(conversationId); }, [isOpen, conversationId]);
-  async function load(id: string) { setLoading(true); try { setRun(await api.getContextRun(id)); } catch (error) { console.error('Failed to load context run', error); } finally { setLoading(false); } }
+interface ContextInspectorModalProps {
+  conversationId: string | null;
+  isOpen: boolean;
+  onClose: () => void;
+}
+export const ContextInspectorModal: React.FC<ContextInspectorModalProps> = ({
+  conversationId,
+  isOpen,
+  onClose,
+}) => {
+  const { t } = useLanguage();
+  const [run, setRun] = useState<ContextRun | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [showFullPrompt, setShowFullPrompt] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const dialogRef = useDialogAccessibility(isOpen, onClose);
+  useEffect(() => {
+    if (!isOpen) return;
+    setRun(null);
+    if (conversationId) void load(conversationId);
+  }, [isOpen, conversationId]);
+  async function load(id: string) {
+    setLoading(true);
+    setErrorMessage(null);
+    try {
+      setRun(await api.getContextRun(id));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Context could not be loaded");
+    } finally {
+      setLoading(false);
+    }
+  }
   if (!isOpen) return null;
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4" role="dialog" aria-modal="true" aria-label={t('inspector.title')}><div className="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-neutral-700 bg-[#151517] shadow-2xl"><header className="flex items-start justify-between gap-4 border-b border-neutral-800 px-5 py-4"><div className="flex min-w-0 items-start gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-neutral-800"><Terminal className="h-4 w-4 text-neutral-200" /></div><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="text-sm font-semibold text-neutral-100">{t('inspector.title')}</h2><span className="rounded-full border border-neutral-700 px-2 py-0.5 text-[10px] text-neutral-500">{t('inspector.badge')}</span></div><p className="mt-1 text-xs leading-5 text-neutral-500">{t('inspector.subtitle')}</p></div></div><button aria-label={t('common.close')} onClick={onClose} className="rounded-lg p-2 text-neutral-500 hover:bg-neutral-800 hover:text-neutral-100"><X className="h-4 w-4" /></button></header><div className="flex items-center gap-2 border-b border-emerald-950/70 bg-emerald-950/20 px-5 py-2.5 text-xs text-emerald-300"><ShieldCheck className="h-4 w-4 shrink-0" />{t('inspector.security')}</div><div className="min-h-0 flex-1 overflow-y-auto p-5">{loading ? <div className="py-16 text-center text-sm text-neutral-500">{t('inspector.loading')}</div> : !conversationId ? <div className="rounded-xl border border-dashed border-neutral-700 p-12 text-center"><Eye className="mx-auto h-8 w-8 text-neutral-700" /><p className="mt-3 text-sm text-neutral-300">{t('inspector.chooseConversation')}</p></div> : !run ? <div className="rounded-xl border border-dashed border-neutral-700 p-12 text-center"><Terminal className="mx-auto h-8 w-8 text-neutral-700" /><p className="mt-3 text-sm text-neutral-300">{t('inspector.empty')}</p><p className="mt-1 text-xs text-neutral-600">{t('inspector.emptyCopy')}</p></div> : <div className="space-y-4"><div className="grid gap-3 sm:grid-cols-4"><Meta label={t('inspector.provider')} value={`${run.providerId} / ${run.modelId}`} /><Meta label={t('inspector.persona')} value={`v${run.personaVersion}`} /><Meta label={t('inspector.memories')} value={String(run.selectedMemoryIds.length)} /><Meta label={t('inspector.tokens')} value={`~${run.tokenEstimate.toLocaleString()}`} /></div><section className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-4"><h3 className="flex items-center gap-2 text-xs font-semibold text-neutral-200"><Database className="h-4 w-4 text-neutral-400" />{t('inspector.selection')}</h3>{run.selectedMemoryIds.length === 0 ? <p className="mt-3 text-xs text-neutral-600">{t('inspector.noMemories')}</p> : <div className="mt-3 space-y-2">{run.selectedMemoryIds.map((id) => <div key={id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs"><span className="font-mono text-neutral-300">{id}</span><span className="text-neutral-500">{run.selectionReasons[id] || 'default_active'}</span></div>)}</div>}</section><section className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-4"><div className="flex items-center justify-between gap-3"><h3 className="flex items-center gap-2 text-xs font-semibold text-neutral-200"><Layers className="h-4 w-4 text-neutral-400" />{t('inspector.assembly')}</h3><button className="text-xs text-neutral-400 hover:text-neutral-100" onClick={() => setShowFullPrompt((current) => !current)}>{showFullPrompt ? t('inspector.showSummary') : t('inspector.showFull')}</button></div><pre className={`mt-3 overflow-y-auto whitespace-pre-wrap rounded-lg border border-neutral-800 bg-[#101012] p-3 font-mono text-[11px] leading-5 text-neutral-400 ${showFullPrompt ? 'max-h-96' : 'max-h-40'}`}>{run.assembledPrompt}</pre></section></div>}</div><footer className="flex justify-end border-t border-neutral-800 px-5 py-3"><button onClick={onClose} className="workspace-button">{t('common.close')}</button></footer></div></div>;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label={t("inspector.title")}
+    >
+      <div ref={dialogRef as React.RefObject<HTMLDivElement | null>} className="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-neutral-700 bg-[#151517] shadow-2xl">
+        <header className="flex items-start justify-between gap-4 border-b border-neutral-800 px-5 py-4">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-neutral-800">
+              <Terminal className="h-4 w-4 text-neutral-200" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-sm font-semibold text-neutral-100">
+                  {t("inspector.title")}
+                </h2>
+                <span className="rounded-full border border-neutral-700 px-2 py-0.5 text-[10px] text-neutral-500">
+                  {t("inspector.badge")}
+                </span>
+              </div>
+              <p className="mt-1 text-xs leading-5 text-neutral-500">
+                {t("inspector.subtitle")}
+              </p>
+            </div>
+          </div>
+          <button
+            aria-label={t("common.close")}
+            onClick={onClose}
+            className="rounded-lg p-2 text-neutral-500 hover:bg-neutral-800 hover:text-neutral-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </header>
+        <div className="flex items-center gap-2 border-b border-emerald-950/70 bg-emerald-950/20 px-5 py-2.5 text-xs text-emerald-300">
+          <ShieldCheck className="h-4 w-4 shrink-0" />
+          {t("inspector.security")}
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+          {loading ? (
+            <div className="py-16 text-center text-sm text-neutral-500">
+              {t("inspector.loading")}
+            </div>
+          ) : errorMessage ? (
+            <div className="rounded-xl border border-rose-900/60 bg-rose-950/20 p-8 text-center"><p className="text-sm text-rose-200">{errorMessage}</p>{conversationId && <button className="workspace-button mt-4" onClick={() => void load(conversationId)}>Retry</button>}</div>
+          ) : !conversationId ? (
+            <div className="rounded-xl border border-dashed border-neutral-700 p-12 text-center">
+              <Eye className="mx-auto h-8 w-8 text-neutral-700" />
+              <p className="mt-3 text-sm text-neutral-300">
+                {t("inspector.chooseConversation")}
+              </p>
+            </div>
+          ) : !run ? (
+            <div className="rounded-xl border border-dashed border-neutral-700 p-12 text-center">
+              <Terminal className="mx-auto h-8 w-8 text-neutral-700" />
+              <p className="mt-3 text-sm text-neutral-300">
+                {t("inspector.empty")}
+              </p>
+              <p className="mt-1 text-xs text-neutral-600">
+                {t("inspector.emptyCopy")}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-4">
+                <Meta
+                  label={t("inspector.provider")}
+                  value={`${run.providerId} / ${run.modelId}`}
+                />
+                <Meta
+                  label={t("inspector.persona")}
+                  value={`v${run.personaVersion}`}
+                />
+                <Meta
+                  label={t("inspector.memories")}
+                  value={String(run.selectedMemoryIds.length)}
+                />
+                <Meta
+                  label={t("inspector.tokens")}
+                  value={`~${run.tokenEstimate.toLocaleString()}`}
+                />
+              </div>
+              <section className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-4">
+                <h3 className="flex items-center gap-2 text-xs font-semibold text-neutral-200">
+                  <Database className="h-4 w-4 text-neutral-400" />
+                  {t("inspector.selection")}
+                </h3>
+                {run.selectedMemoryIds.length === 0 ? (
+                  <p className="mt-3 text-xs text-neutral-600">
+                    {t("inspector.noMemories")}
+                  </p>
+                ) : (
+                  <div className="mt-3 space-y-2">
+                    {run.selectedMemoryIds.map((id) => (
+                      <div
+                        key={id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs"
+                      >
+                        <span className="font-mono text-neutral-300">{id}</span>
+                        <span className="text-neutral-500">
+                          {run.selectionReasons[id] || "default_active"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+              <section className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="flex items-center gap-2 text-xs font-semibold text-neutral-200">
+                    <Layers className="h-4 w-4 text-neutral-400" />
+                    {t("inspector.assembly")}
+                  </h3>
+                  <button
+                    className="text-xs text-neutral-400 hover:text-neutral-100"
+                    onClick={() => setShowFullPrompt((current) => !current)}
+                  >
+                    {showFullPrompt
+                      ? t("inspector.showSummary")
+                      : t("inspector.showFull")}
+                  </button>
+                </div>
+                <pre
+                  className={`mt-3 overflow-y-auto whitespace-pre-wrap rounded-lg border border-neutral-800 bg-[#101012] p-3 font-mono text-[11px] leading-5 text-neutral-400 ${showFullPrompt ? "max-h-96" : "max-h-40"}`}
+                >
+                  {run.assembledPrompt}
+                </pre>
+              </section>
+            </div>
+          )}
+        </div>
+        <footer className="flex justify-end border-t border-neutral-800 px-5 py-3">
+          <button onClick={onClose} className="workspace-button">
+            {t("common.close")}
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
 };
-function Meta({ label, value }: { label: string; value: string }) { return <div className="min-w-0 rounded-xl border border-neutral-800 bg-neutral-950/60 p-3"><p className="truncate text-[10px] uppercase tracking-wide text-neutral-600">{label}</p><p className="mt-2 truncate font-mono text-xs text-neutral-200">{value}</p></div>; }
+function Meta({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-xl border border-neutral-800 bg-neutral-950/60 p-3">
+      <p className="truncate text-[10px] uppercase tracking-wide text-neutral-600">
+        {label}
+      </p>
+      <p className="mt-2 truncate font-mono text-xs text-neutral-200">
+        {value}
+      </p>
+    </div>
+  );
+}

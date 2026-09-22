@@ -14,8 +14,10 @@ import { MemoryExtractor } from '../memory/extractor.js';
 import { MemoryDeduplicator } from '../memory/deduplicator.js';
 import { ProjectRepository } from '../db/repositories/project.repo.js';
 import { requestUserId } from '../auth/service.js';
+import { ProviderConnectionRepository } from '../db/repositories/provider-connection.repo.js';
+import type { Message } from '@espera/shared';
 
-export function createChatRoutes(db: D1Database, registry: ProviderRegistry) {
+export function createChatRoutes(db: D1Database, registry: ProviderRegistry, credentialEncryptionKey?: string) {
   const router = new Hono();
 
   const userRepo = new UserRepository(db);
@@ -30,33 +32,64 @@ export function createChatRoutes(db: D1Database, registry: ProviderRegistry) {
     new MemoryDeduplicator()
   );
   const projectRepo = new ProjectRepository(db);
+  const connectionRepo = new ProviderConnectionRepository(db);
 
   router.post('/', async (c) => {
-    const rawBody = await c.req.json();
+    const rawBody = await c.req.json().catch(() => null);
     const parseResult = SendMessageSchema.safeParse(rawBody);
     if (!parseResult.success) {
       return c.json({ error: 'Invalid request body', details: parseResult.error.flatten() }, 400);
     }
     const body = parseResult.data;
 
+    // Resolve the provider before any write: an unknown id must not leave an
+    // orphaned user message behind a 500.
+    let provider;
+    try {
+      provider = registry.get(body.providerId);
+    } catch {
+      return c.json({ error: 'Unknown provider' }, 400);
+    }
+
     // Retrieve credential from header (Session-only BYOK)
     let credential = undefined;
     const credHeader = c.req.header('X-Espera-Credential');
     if (credHeader) {
       try {
-        credential = JSON.parse(credHeader);
+        const parsed = JSON.parse(credHeader) as { apiKey?: unknown; endpointUrl?: unknown };
+        if (typeof parsed.apiKey !== 'string' || !parsed.apiKey || parsed.apiKey.length > 10_000) return c.json({ error: 'Invalid credential header' }, 400);
+        if (parsed.endpointUrl !== undefined && (typeof parsed.endpointUrl !== 'string' || parsed.endpointUrl.length > 2048)) return c.json({ error: 'Invalid credential endpoint' }, 400);
+        credential = { apiKey: parsed.apiKey, endpointUrl: parsed.endpointUrl as string | undefined };
       } catch {
-        // invalid credential header JSON
+        return c.json({ error: 'Invalid credential header' }, 400);
       }
     }
 
-    // Ensure default user and persona
-    const user = await userRepo.ensureUser(requestUserId(c), 'Espera User');
+    if (body.connectionId) {
+      const connectionProviderId = await connectionRepo.getProviderId(body.connectionId, requestUserId(c));
+      if (!connectionProviderId) return c.json({ error: 'Provider connection not found' }, 404);
+      if (connectionProviderId !== body.providerId) return c.json({ error: 'Provider connection does not match providerId' }, 409);
+      if (!credential) credential = await connectionRepo.getCredential(body.connectionId, requestUserId(c), credentialEncryptionKey) || undefined;
+    }
+
+    // Resolve the authenticated owner once and validate every referenced resource.
+    const userId = requestUserId(c);
+    const user = await userRepo.ensureUser(userId, 'Espera User');
     const persona = await personaRepo.ensureDefaultPersona(user.id);
+
+    if (body.projectId && !(await projectRepo.get(body.projectId, user.id))) {
+      return c.json({ error: 'Project not found' }, 404);
+    }
 
     // Ensure conversation
     let convId = body.conversationId;
-    if (!convId) {
+    if (convId) {
+      const existing = await convRepo.getConversation(convId, user.id);
+      if (!existing) return c.json({ error: 'Conversation not found' }, 404);
+      if (body.projectId !== undefined && existing.projectId !== body.projectId) {
+        return c.json({ error: 'Conversation project scope does not match the request' }, 409);
+      }
+    } else {
       const conv = await convRepo.createConversation(
         user.id,
         body.content.slice(0, 30) || 'New Conversation',
@@ -65,25 +98,31 @@ export function createChatRoutes(db: D1Database, registry: ProviderRegistry) {
       convId = conv.id;
     }
 
-    // 1. Save user message
-    const userMsg = await convRepo.addMessage({
-      conversationId: convId,
-      role: 'user',
-      content: body.content,
-      providerId: body.providerId,
-      modelId: body.modelId,
-    });
+    // 1. Save a new user message, or reuse the source user message for regeneration.
+    let userMsg: Message;
+    let createdUserMessage = false;
+    let regenerationTarget: Message | null = null;
+    if (body.regenerateFromMessageId) {
+      regenerationTarget = await convRepo.getMessage(body.regenerateFromMessageId, convId);
+      if (!regenerationTarget || regenerationTarget.role !== 'assistant') return c.json({ error: 'Assistant message not found' }, 404);
+      const source = await convRepo.getPreviousUserMessage(regenerationTarget.id, convId);
+      if (!source) return c.json({ error: 'Source user message not found' }, 409);
+      userMsg = source;
+    } else {
+      userMsg = await convRepo.addMessage({ conversationId: convId, role: 'user', content: body.content, providerId: body.providerId, modelId: body.modelId });
+      createdUserMessage = true;
+    }
 
     // 2. Fetch active memories & recent messages
     const activeMemories = await memoryRepo.getActiveMemories(user.id, body.projectId);
-    const recentMessages = await convRepo.getRecentMessages(convId, 10);
+    const recentMessages = (await convRepo.getRecentMessages(convId, 30)).filter((message) => message.id !== regenerationTarget?.id);
 
     // 3. Compose context using ContextEngine
     const project = body.projectId ? await projectRepo.get(body.projectId, user.id) : null;
     const composition = contextEngine.compose({
       userId: user.id,
       conversationId: convId,
-      currentQuery: body.content,
+      currentQuery: userMsg.content,
       persona,
       project,
       activeMemories,
@@ -96,12 +135,11 @@ export function createChatRoutes(db: D1Database, registry: ProviderRegistry) {
     composition.contextRun.messageId = userMsg.id;
     await contextRunRepo.saveRun(composition.contextRun);
 
-    const provider = registry.get(body.providerId);
-
     // 4. Handle response: Streaming or non-streaming
     if (body.stream) {
       return streamSSE(c, async (stream) => {
         let fullAssistantReply = '';
+        let responsePersisted = false;
 
         try {
           const streamIterable = provider.stream({
@@ -125,23 +163,21 @@ export function createChatRoutes(db: D1Database, registry: ProviderRegistry) {
           }
 
           // Save assistant message to D1
-          const assistantMsg = await convRepo.addMessage({
-            conversationId: convId,
-            role: 'assistant',
-            content: fullAssistantReply,
-            providerId: body.providerId,
-            modelId: body.modelId,
-          });
+          const assistantMsg = regenerationTarget
+            ? await convRepo.updateMessage(regenerationTarget.id, convId, { content: fullAssistantReply, providerId: body.providerId, modelId: body.modelId })
+            : await convRepo.addMessage({ conversationId: convId, role: 'assistant', content: fullAssistantReply, providerId: body.providerId, modelId: body.modelId });
+          responsePersisted = true;
 
           // Trigger asynchronous memory candidate extraction
           const newCandidates = await memoryCoordinator.processTurn({
             userId: user.id,
             projectId: body.projectId,
             messageId: assistantMsg.id,
-            userMessage: body.content,
+            userMessage: userMsg.content,
             assistantMessage: fullAssistantReply,
             provider,
             credential,
+            modelId: body.modelId,
           });
 
           await stream.writeSSE({
@@ -156,45 +192,44 @@ export function createChatRoutes(db: D1Database, registry: ProviderRegistry) {
           });
         } catch (err: any) {
           console.error('[ChatRoute] Stream error:', err);
-          await stream.writeSSE({
-            data: JSON.stringify({ error: err.message || 'Streaming failed' }),
-            event: 'error',
-          });
+          if (createdUserMessage && !responsePersisted) await convRepo.deleteMessage(userMsg.id, convId);
+          try { await stream.writeSSE({ data: JSON.stringify({ error: err.message || 'Streaming failed' }), event: 'error' }); } catch { /* client disconnected */ }
         }
       });
     } else {
-      // Non-streaming response
-      const response = await provider.generate({
-        modelId: body.modelId,
-        messages: composition.messages,
-        credential,
-      });
+      try {
+        // Non-streaming response
+        const response = await provider.generate({
+          modelId: body.modelId,
+          messages: composition.messages,
+          credential,
+        });
 
-      const assistantMsg = await convRepo.addMessage({
-        conversationId: convId,
-        role: 'assistant',
-        content: response.content,
-        providerId: body.providerId,
-        modelId: body.modelId,
-      });
+        const assistantMsg = regenerationTarget
+          ? await convRepo.updateMessage(regenerationTarget.id, convId, { content: response.content, providerId: body.providerId, modelId: body.modelId })
+          : await convRepo.addMessage({ conversationId: convId, role: 'assistant', content: response.content, providerId: body.providerId, modelId: body.modelId });
 
-      // Extract memories
-      const newCandidates = await memoryCoordinator.processTurn({
-        userId: user.id,
-        projectId: body.projectId,
-        messageId: assistantMsg.id,
-        userMessage: body.content,
-        assistantMessage: response.content,
-        provider,
-        credential,
-      });
+        const newCandidates = await memoryCoordinator.processTurn({
+          userId: user.id,
+          projectId: body.projectId,
+          messageId: assistantMsg.id,
+          userMessage: userMsg.content,
+          assistantMessage: response.content,
+          provider,
+          credential,
+          modelId: body.modelId,
+        });
 
-      return c.json({
-        conversationId: convId,
-        message: assistantMsg,
-        contextRunId: composition.contextRun.id,
-        newPendingMemoriesCount: newCandidates.length,
-      });
+        return c.json({
+          conversationId: convId,
+          message: assistantMsg,
+          contextRunId: composition.contextRun.id,
+          newPendingMemoriesCount: newCandidates.length,
+        });
+      } catch (error) {
+        if (createdUserMessage) await convRepo.deleteMessage(userMsg.id, convId);
+        throw error;
+      }
     }
   });
 

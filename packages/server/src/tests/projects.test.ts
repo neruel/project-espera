@@ -16,6 +16,13 @@ describe('Project scope persistence', () => {
     const listResponse = await app.fetch(new Request('http://localhost/api/projects'));
     expect((await listResponse.json() as any).projects).toHaveLength(1);
 
+    await app.fetch(new Request('http://localhost/api/conversations', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: 'Scoped conversation', projectId: created.project.id }) }));
+    const contentsResponse = await app.fetch(new Request(`http://localhost/api/projects/${created.project.id}/contents`));
+    const contents = await contentsResponse.json() as any;
+    expect(contentsResponse.status).toBe(200);
+    expect(contents.conversations).toHaveLength(1);
+    expect(contents.conversations[0].title).toBe('Scoped conversation');
+
     const deleteResponse = await app.fetch(new Request(`http://localhost/api/projects/${created.project.id}`, { method: 'DELETE' }));
     expect(deleteResponse.status).toBe(204);
   });

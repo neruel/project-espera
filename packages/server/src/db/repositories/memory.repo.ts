@@ -74,10 +74,10 @@ export class MemoryRepository {
       .bind(`rev_${crypto.randomUUID()}`, id, data.canonicalText)
       .run();
 
-    return (await this.getMemoryById(id))!;
+    return (await this.getMemoryById(id, data.userId))!;
   }
 
-  async getMemoryById(id: string): Promise<Memory | null> {
+  async getMemoryById(id: string, userId: string): Promise<Memory | null> {
     const row = await this.db
       .prepare(
         `SELECT id, user_id as userId, project_id as projectId, type, subject, predicate,
@@ -85,9 +85,9 @@ export class MemoryRepository {
                 confidence, importance, sensitivity, status, valid_from as validFrom,
                 valid_until as validUntil, created_at as createdAt, updated_at as updatedAt
          FROM memories
-         WHERE id = ?`
+          WHERE id = ? AND user_id = ?`
       )
-      .bind(id)
+      .bind(id, userId)
       .first<any>();
 
     if (!row) return null;
@@ -111,6 +111,11 @@ export class MemoryRepository {
       status?: MemoryStatus;
       type?: MemoryType;
       projectId?: string | null;
+      query?: string;
+      limit?: number;
+      offset?: number;
+      sort?: 'updated' | 'importance' | 'confidence';
+      history?: boolean;
     }
   ): Promise<Memory[]> {
     let query = `SELECT id, user_id as userId, project_id as projectId, type, subject, predicate,
@@ -124,10 +129,11 @@ export class MemoryRepository {
     if (filters?.status) {
       query += ` AND status = ?`;
       params.push(filters.status);
-    } else {
+    } else if (!filters?.history) {
       // By default exclude soft-deleted memories
       query += ` AND status != 'deleted'`;
     }
+    if (filters?.history) query += ` AND status NOT IN ('pending', 'active')`;
 
     if (filters?.type) {
       query += ` AND type = ?`;
@@ -143,7 +149,14 @@ export class MemoryRepository {
       }
     }
 
-    query += ` ORDER BY importance DESC, updated_at DESC`;
+    if (filters?.query) {
+      query += ` AND (canonical_text LIKE ? ESCAPE '\\' OR subject LIKE ? ESCAPE '\\' OR predicate LIKE ? ESCAPE '\\')`;
+      const escaped = filters.query.replace(/[\\%_]/g, '\\$&');
+      params.push(`%${escaped}%`, `%${escaped}%`, `%${escaped}%`);
+    }
+
+    query += filters?.sort === 'confidence' ? ` ORDER BY confidence DESC, updated_at DESC` : filters?.sort === 'updated' ? ` ORDER BY updated_at DESC, rowid DESC` : ` ORDER BY importance DESC, updated_at DESC`;
+    if (filters?.limit) { query += ` LIMIT ? OFFSET ?`; params.push(filters.limit, filters.offset ?? 0); }
 
     const res = await this.db.prepare(query).bind(...params).all<any>();
 
@@ -165,15 +178,17 @@ export class MemoryRepository {
     return this.getMemories(userId, { status: 'active', projectId });
   }
 
-  async approveMemory(id: string, changeReason: string = 'User approved', actor: 'user' | 'system' = 'user'): Promise<Memory> {
-    const current = await this.getMemoryById(id);
+  async approveMemory(id: string, userId: string, changeReason: string = 'User approved', actor: 'user' | 'system' = 'user'): Promise<Memory> {
+    const current = await this.getMemoryById(id, userId);
     if (!current) throw new Error(`Memory not found: ${id}`);
     if (current.status === 'active') return current;
+    if (current.status !== 'pending') throw new Error('Only pending memories can be approved');
 
-    await this.db
-      .prepare(`UPDATE memories SET status = 'active', updated_at = datetime('now') WHERE id = ?`)
-      .bind(id)
+    const transition = await this.db
+      .prepare(`UPDATE memories SET status = 'active', updated_at = datetime('now') WHERE id = ? AND user_id = ? AND status = 'pending'`)
+      .bind(id, userId)
       .run();
+    if ((transition.meta?.changes ?? 0) === 0) return (await this.getMemoryById(id, userId))!;
 
     await this.db
       .prepare(
@@ -191,11 +206,12 @@ export class MemoryRepository {
       )
       .run();
 
-    return (await this.getMemoryById(id))!;
+    return (await this.getMemoryById(id, userId))!;
   }
 
   async editAndApproveMemory(
     id: string,
+    userId: string,
     update: {
       canonicalText: string;
       importance?: number;
@@ -204,7 +220,7 @@ export class MemoryRepository {
     },
     actor: 'user' | 'system' = 'user'
   ): Promise<Memory> {
-    const current = await this.getMemoryById(id);
+    const current = await this.getMemoryById(id, userId);
     if (!current) throw new Error(`Memory not found: ${id}`);
 
     const importance = update.importance ?? current.importance;
@@ -235,17 +251,20 @@ export class MemoryRepository {
       )
       .run();
 
-    return (await this.getMemoryById(id))!;
+    return (await this.getMemoryById(id, userId))!;
   }
 
-  async rejectMemory(id: string, reason: string = 'User rejected', actor: 'user' | 'system' = 'user'): Promise<Memory> {
-    const current = await this.getMemoryById(id);
+  async rejectMemory(id: string, userId: string, reason: string = 'User rejected', actor: 'user' | 'system' = 'user'): Promise<Memory> {
+    const current = await this.getMemoryById(id, userId);
     if (!current) throw new Error(`Memory not found: ${id}`);
 
-    await this.db
-      .prepare(`UPDATE memories SET status = 'rejected', updated_at = datetime('now') WHERE id = ?`)
-      .bind(id)
+    if (current.status === 'rejected') return current;
+    if (current.status !== 'pending') throw new Error('Only pending memories can be rejected');
+    const transition = await this.db
+      .prepare(`UPDATE memories SET status = 'rejected', updated_at = datetime('now') WHERE id = ? AND user_id = ? AND status = 'pending'`)
+      .bind(id, userId)
       .run();
+    if ((transition.meta?.changes ?? 0) === 0) return (await this.getMemoryById(id, userId))!;
 
     await this.db
       .prepare(
@@ -263,17 +282,19 @@ export class MemoryRepository {
       )
       .run();
 
-    return (await this.getMemoryById(id))!;
+    return (await this.getMemoryById(id, userId))!;
   }
 
-  async softDeleteMemory(id: string, reason: string = 'Soft deleted by user', actor: 'user' | 'system' = 'user'): Promise<Memory> {
-    const current = await this.getMemoryById(id);
+  async softDeleteMemory(id: string, userId: string, reason: string = 'Soft deleted by user', actor: 'user' | 'system' = 'user'): Promise<Memory> {
+    const current = await this.getMemoryById(id, userId);
     if (!current) throw new Error(`Memory not found: ${id}`);
 
-    await this.db
-      .prepare(`UPDATE memories SET status = 'deleted', updated_at = datetime('now') WHERE id = ?`)
-      .bind(id)
+    if (current.status === 'deleted') return current;
+    const transition = await this.db
+      .prepare(`UPDATE memories SET status = 'deleted', updated_at = datetime('now') WHERE id = ? AND user_id = ? AND status != 'deleted'`)
+      .bind(id, userId)
       .run();
+    if ((transition.meta?.changes ?? 0) === 0) return (await this.getMemoryById(id, userId))!;
 
     await this.db
       .prepare(
@@ -291,39 +312,42 @@ export class MemoryRepository {
       )
       .run();
 
-    return (await this.getMemoryById(id))!;
+    return (await this.getMemoryById(id, userId))!;
   }
 
-  async hardDeleteMemory(id: string): Promise<boolean> {
-    await this.db.prepare(`DELETE FROM memories WHERE id = ?`).bind(id).run();
-    return true;
+  async hardDeleteMemory(id: string, userId: string): Promise<boolean> {
+    const result = await this.db.prepare(`DELETE FROM memories WHERE id = ? AND user_id = ?`).bind(id, userId).run();
+    return result.meta.changes > 0;
   }
 
-  async getRevisions(memoryId: string): Promise<MemoryRevision[]> {
+  async getRevisions(memoryId: string, userId: string): Promise<MemoryRevision[]> {
     const res = await this.db
       .prepare(
-        `SELECT id, memory_id as memoryId, previous_status as previousStatus,
-                new_status as newStatus, previous_canonical_text as previousCanonicalText,
-                new_canonical_text as newCanonicalText, change_reason as changeReason,
-                actor, created_at as createdAt
-         FROM memory_revisions
-         WHERE memory_id = ?
-         ORDER BY rowid DESC`
+        `SELECT r.id, r.memory_id as memoryId, r.previous_status as previousStatus,
+                r.new_status as newStatus, r.previous_canonical_text as previousCanonicalText,
+                r.new_canonical_text as newCanonicalText, r.change_reason as changeReason,
+                r.actor, r.created_at as createdAt
+          FROM memory_revisions r
+          INNER JOIN memories m ON m.id = r.memory_id
+          WHERE r.memory_id = ? AND m.user_id = ?
+          ORDER BY r.rowid DESC`
       )
-      .bind(memoryId)
+      .bind(memoryId, userId)
       .all<MemoryRevision>();
     return res.results || [];
   }
 
-  async getEvidence(memoryId: string): Promise<MemoryEvidence[]> {
+  async getEvidence(memoryId: string, userId: string): Promise<MemoryEvidence[]> {
     const res = await this.db
       .prepare(
-        `SELECT id, memory_id as memoryId, message_id as messageId, snippet,
-                created_at as createdAt
-         FROM memory_evidence
-         WHERE memory_id = ?`
+        `SELECT e.id, e.memory_id as memoryId, e.message_id as messageId, e.snippet,
+                msg.conversation_id as conversationId, e.created_at as createdAt
+          FROM memory_evidence e
+          INNER JOIN memories m ON m.id = e.memory_id
+          INNER JOIN messages msg ON msg.id = e.message_id
+          WHERE e.memory_id = ? AND m.user_id = ?`
       )
-      .bind(memoryId)
+      .bind(memoryId, userId)
       .all<MemoryEvidence>();
     return res.results || [];
   }

@@ -24,6 +24,7 @@ export default {
       githubClientSecret: env.GITHUB_CLIENT_SECRET,
       githubRedirectUri: env.GITHUB_OAUTH_REDIRECT_URI,
       frontendOrigin: env.ESPERA_FRONTEND_ORIGIN || env.ESPERA_ALLOWED_ORIGIN,
+      credentialEncryptionKey: env.ESPERA_MASTER_ENCRYPTION_KEY,
     });
     return app.fetch(request, env, ctx);
   },

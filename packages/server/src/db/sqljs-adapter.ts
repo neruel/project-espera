@@ -87,17 +87,17 @@ class SqlJsPreparedStatement implements D1PreparedStatement {
   }
 
   async run(): Promise<{ success: boolean; meta: { changes: number } }> {
-    const prevChanges = this.sqlDb.getRowsModified();
     const stmt = this.sqlDb.prepare(this.query);
     try {
       if (this.boundValues.length > 0) {
         stmt.bind(this.boundValues);
       }
       stmt.step();
-      const currentChanges = this.sqlDb.getRowsModified();
       return {
         success: true,
-        meta: { changes: currentChanges - prevChanges },
+        // sql.js returns the number of rows changed by the most recent statement,
+        // not a cumulative counter. This mirrors D1's meta.changes semantics.
+        meta: { changes: this.sqlDb.getRowsModified() },
       };
     } finally {
       stmt.free();

@@ -9,7 +9,7 @@
 
 | Asset | Sensitivity | Impact of Compromise | Mitigation in Espera |
 | :--- | :--- | :--- | :--- |
-| **BYOK API Keys** | **Critical** | Financial abuse (API billing drain), unauthorized LLM usage | Never logged, masked in UI, not persisted in D1 in Session-only mode, memory-only lifecycle during inference. |
+| **BYOK API Keys** | **Critical** | Financial abuse (API billing drain), unauthorized LLM usage | Never logged, masked in UI, session-only by default; optional AES-GCM ciphertext in D1 when the user explicitly opts in. |
 | **User Memories & Persona** | **High** | Privacy invasion, leak of user habits, projects, personal facts | Scoped strictly to `userId`, human-in-the-loop review before activation, sensitive categories blocked from extraction. |
 | **Conversation Logs** | **Medium-High** | Leak of confidential work or personal discussions | Isolated by `userId` and `sessionId`, cascade deletion support. |
 | **Context Run Snapshots** | **Medium** | Exposure of prompt templates and system directives | Stripped of any credential headers or secrets before saving to D1. |
@@ -21,10 +21,13 @@
 ### 2.1 API Key Exposure & Credential Theft
 * **Threat**: API keys stored in client `localStorage` leaked via third-party script XSS, or leaked through Cloudflare Worker logs / error stack traces.
 * **Mitigation**:
-  1. **Phase 1 Default: Session-Only In-Memory**: Keys are kept in React application memory state (RAM) or session storage for the browser tab lifetime. Keys are never sent to persistent DB.
-  2. **Header-Based Transmission**: Sent to `/api/chat` via HTTPS header `X-Espera-Credential` or encrypted payload.
-  3. **Zero-Logging Invariant**: Worker logger intercepts and strips any authorization tokens or `X-Espera-Credential` headers.
-  4. **No UI Egress**: UI settings display only masked hints (e.g. `sk-...abcd`) or "Connected" status; full keys are never rendered back from API.
+  1. **Default: Session-Only In-Memory**: Keys are kept in React application memory for the browser tab lifetime and are never sent to persistent DB.
+  2. **Optional Persistent Storage**: If the user explicitly opts in, the Worker encrypts the key with the `ESPERA_MASTER_ENCRYPTION_KEY` AES-GCM key before saving ciphertext, nonce, and version in D1. Plaintext keys are never returned by connection APIs.
+  3. **Header-Based Transmission**: Session-only keys are sent to `/api/chat` via HTTPS header `X-Espera-Credential`; persisted keys are decrypted only inside the authenticated Worker request.
+  4. **Zero-Logging Invariant**: Worker logger intercepts and strips any authorization tokens or `X-Espera-Credential` headers.
+  5. **No UI Egress**: UI settings display only stored/not-stored status; full keys are never rendered back from API.
+
+Persistent credential storage changes the trust boundary: a compromise of both D1 and the Worker encryption secret could expose stored keys. The feature therefore remains opt-in, requires a production secret, and should use a rotation policy before broad public deployment.
 
 ### 2.2 Memory Poisoning & Prompt Injection
 * **Threat**: Malicious user input or hallucinated assistant output triggers extraction of harmful, false, or unauthorized memory facts (e.g. "System prompt override").
@@ -59,3 +62,9 @@
 - 사용자 지정 Endpoint를 서버가 호출하므로 SSRF 위험이 남는다. 운영 배포 전 DNS resolution 이후 private/link-local/metadata IP 차단과 egress allow policy를 추가해야 한다.
 - 로컬 LLM의 HTTP endpoint는 네트워크 도청 위험이 있으므로 loopback 개발에만 사용해야 한다.
 - 외부 Provider 오류는 공통 오류 코드와 정제된 메시지로 변환하며 인증 헤더나 Key를 반환하지 않는다.
+# Endpoint 및 확장 기능 결정
+
+- 운영 정책은 `public-https`로 HTTP, loopback/private literal IP, URL credential, fragment, redirect를 차단합니다. 공식 endpoint 전용 배포는 `official-only`로 강화할 수 있습니다.
+- DNS rebinding은 Worker 런타임에서 응답 IP를 고정하기 어려우므로 custom endpoint의 잔여 위험입니다. 고신뢰 환경에서는 `official-only`를 사용합니다.
+- Embedding semantic search는 승인된 Memory를 추가 외부 서비스에 전송할 수 있어 기본 활성화하지 않습니다. 로컬 embedding 또는 별도 동의·보존·비용 정책이 준비된 뒤 도입합니다.
+- Vision과 Tool calling은 파일·외부 작업이라는 새로운 권한 경계를 만들기 때문에 capability 표시만으로 자동 노출하지 않으며 별도 동의와 도구 allowlist가 필요합니다.

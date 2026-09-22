@@ -144,4 +144,20 @@ export class PersonaRepository {
       principles: JSON.parse(row.principles_json || '[]'),
     }));
   }
+
+  async restoreRevision(userId: string, version: number): Promise<Persona> {
+    const current = await this.ensureDefaultPersona(userId);
+    const revision = await this.db.prepare(
+      `SELECT instructions, tone_and_manner as toneAndManner, principles_json
+       FROM persona_revisions WHERE persona_id = ? AND version = ?`
+    ).bind(current.id, version).first<{ instructions: string; toneAndManner: string; principles_json: string }>();
+    if (!revision) throw new Error('Persona revision not found');
+    return this.updatePersona(userId, {
+      name: current.name,
+      instructions: revision.instructions,
+      toneAndManner: revision.toneAndManner,
+      principles: JSON.parse(revision.principles_json || '[]'),
+      changeReason: `Restored from version ${version}`,
+    });
+  }
 }

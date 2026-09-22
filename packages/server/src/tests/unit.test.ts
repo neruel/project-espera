@@ -7,6 +7,7 @@ import { MemoryRepository } from '../db/repositories/memory.repo.js';
 import { ContextEngine } from '../context/engine.js';
 import { MockProvider } from '../providers/mock.provider.js';
 import { MemoryDeduplicator } from '../memory/deduplicator.js';
+import { MemoryExtractor } from '../memory/extractor.js';
 import {
   MemoryCandidateSchema,
   type Memory,
@@ -260,10 +261,10 @@ describe('Unit Tests - Project Espera Core Subsystems', () => {
     expect(candidate.status).toBe('pending');
 
     // 2. Approve memory
-    const approved = await memoryRepo.approveMemory(candidate.id, 'Confirmed by user in inbox');
+    const approved = await memoryRepo.approveMemory(candidate.id, 'test_user', 'Confirmed by user in inbox');
     expect(approved.status).toBe('active');
 
-    let revisions = await memoryRepo.getRevisions(candidate.id);
+    let revisions = await memoryRepo.getRevisions(candidate.id, 'test_user');
     expect(revisions.length).toBe(2); // Initial creation + approval
     expect(revisions[0].newStatus).toBe('active');
     expect(revisions[0].changeReason).toBe('Confirmed by user in inbox');
@@ -271,6 +272,7 @@ describe('Unit Tests - Project Espera Core Subsystems', () => {
     // 3. Edit and approve with custom text
     const edited = await memoryRepo.editAndApproveMemory(
       candidate.id,
+      'test_user',
       {
         canonicalText: '사용자는 개인용 지속형 AI Project Espera를 총괄 개발하고 있다.',
         importance: 5,
@@ -279,7 +281,7 @@ describe('Unit Tests - Project Espera Core Subsystems', () => {
     );
     expect(edited.canonicalText).toContain('총괄 개발');
 
-    revisions = await memoryRepo.getRevisions(candidate.id);
+    revisions = await memoryRepo.getRevisions(candidate.id, 'test_user');
     expect(revisions.length).toBe(3);
     expect(revisions[0].newCanonicalText).toContain('총괄 개발');
     expect(revisions[0].changeReason).toBe('User refined canonical phrasing');
@@ -337,6 +339,15 @@ describe('Unit Tests - Project Espera Core Subsystems', () => {
   });
 
   // Test 9: API Key leakage prevention in logs/serialization
+  it('compresses older long-conversation history while preserving recent messages verbatim', () => {
+    const recentMessages = Array.from({ length: 18 }, (_, index) => ({ id: `msg_${index}`, conversationId: 'conv_long', role: index % 2 === 0 ? 'user' as const : 'assistant' as const, content: `turn-${index} ${'context '.repeat(80)}`, createdAt: new Date().toISOString() }));
+    const result = contextEngine.compose({ userId: 'test_user', conversationId: 'conv_long', currentQuery: 'latest question', persona: defaultPersona, activeMemories: [], recentMessages, providerId: 'mock', modelId: 'mock-model-a' });
+    expect(result.contextRun.assembledPrompt).toContain('Earlier Conversation Summary');
+    expect(result.contextRun.assembledPrompt).toContain('untrusted conversation record');
+    expect(result.messages.some((message) => message.content.includes('turn-17'))).toBe(true);
+    expect(result.messages.length).toBeLessThan(recentMessages.length + 2);
+  });
+
   it('9. Security utilities mask API keys and sanitize sensitive fields from logs and objects', () => {
     const rawKey = 'sk-proj-1234567890abcdefghijklmnop';
     const masked = maskApiKey(rawKey);
@@ -363,5 +374,33 @@ describe('Unit Tests - Project Espera Core Subsystems', () => {
 
     const serialized = JSON.stringify(sanitized);
     expect(serialized).not.toContain(rawKey);
+  });
+
+  it('10. Memory extraction reuses the turn model instead of an uncredentialed model listing', async () => {
+    const calls: string[] = [];
+    // Mirrors the real providers: listModels() returns [] without a credential,
+    // so the extractor must not depend on it to pick a model.
+    const provider = {
+      id: 'openai',
+      name: 'Stub OpenAI',
+      listModels: async (credential?: { apiKey?: string }) =>
+        credential?.apiKey ? [{ id: 'remote-model', name: 'remote', contextWindow: 0, supportsStreaming: true }] : [],
+      validateCredential: async () => true,
+      generate: async (request: { modelId: string }) => {
+        calls.push(request.modelId);
+        return { content: '{"candidates": []}', modelId: request.modelId };
+      },
+      stream: async function* () { yield { delta: '', isComplete: true }; },
+      getCapabilities: () => ({ supportsStreaming: true, supportsVision: false, supportsToolCalling: false }),
+    };
+
+    const extractor = new MemoryExtractor();
+    await extractor.extract('나는 컴퓨터공학을 공부한다', 'ok', provider as any, undefined, 'gpt-4.1-mini');
+    expect(calls).toEqual(['gpt-4.1-mini']);
+
+    // Without a model id and without a credential there is nothing to call, and the
+    // extractor must degrade quietly rather than throw on an empty model list.
+    await extractor.extract('나는 컴퓨터공학을 공부한다', 'ok', provider as any);
+    expect(calls).toEqual(['gpt-4.1-mini']);
   });
 });
