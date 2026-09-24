@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.0-beta.3 - 2026-09-24
+
+- Added `factchat-cloud.mindlogic.ai` to the hosted OpenAI-compatible API allowlist.
+- Confirmed the FactChat HTTPS endpoint is reachable; configure its Base URL as `https://factchat-cloud.mindlogic.ai/v1/gateway`.
+
 ## 1.0.0-beta.2 - 2026-09-24
 
 - Added hosted support for OpenAI-compatible APIs from the configured provider host allowlist: OpenRouter, DeepSeek, Groq, Together, Fireworks, Mistral, xAI, Cerebras, SiliconFlow, Novita, Perplexity, Venice, Z.ai, and MiniMax.

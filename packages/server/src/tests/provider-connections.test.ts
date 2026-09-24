@@ -22,8 +22,9 @@ describe('Provider connections and endpoint security', () => {
   });
 
   it('allows configured compatible API hosts and blocks arbitrary or private destinations', () => {
-    setEndpointPolicy('allowlisted-https', 'api.example.com,not-a-wildcard.example');
+    setEndpointPolicy('allowlisted-https', 'api.example.com,not-a-wildcard.example,factchat-cloud.mindlogic.ai');
     expect(normalizeBaseUrl('https://api.example.com/v1', '')).toBe('https://api.example.com/v1');
+    expect(normalizeBaseUrl('https://factchat-cloud.mindlogic.ai/v1/gateway', '')).toBe('https://factchat-cloud.mindlogic.ai/v1/gateway');
     expect(() => normalizeBaseUrl('https://attacker.example/v1', '')).toThrow(/not enabled/);
     expect(() => normalizeBaseUrl('https://subdomain.not-a-wildcard.example/v1', '')).toThrow(/not enabled/);
     expect(() => normalizeBaseUrl('https://127.0.0.1/v1', '')).toThrow(/not enabled/);
