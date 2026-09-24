@@ -15,7 +15,7 @@ describe('Integration Tests - 10-Step Core Loop Scenario with MockProvider', () 
   beforeEach(async () => {
     db = await createTestDatabase();
     const registry = new ProviderRegistry();
-    app = createApp(db, registry);
+    app = createApp(db, registry, { mode: 'optional' });
     memoryRepo = new MemoryRepository(db);
   });
 
@@ -194,6 +194,17 @@ describe('Integration Tests - 10-Step Core Loop Scenario with MockProvider', () 
     }));
     expect(response.status).toBe(404);
     expect(await new ConversationRepository(db).getRecentMessages(foreignConversation.id, 10)).toHaveLength(0);
+  });
+
+  it('applies the existing conversation project context when projectId is omitted', async () => {
+    const projectResponse = await app.fetch(new Request('http://localhost/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Scoped Roadmap', description: 'inherited-project-context' }) }));
+    const { project } = await projectResponse.json() as any;
+    const conversationResponse = await app.fetch(new Request('http://localhost/api/conversations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: 'Scoped', projectId: project.id }) }));
+    const { conversation } = await conversationResponse.json() as any;
+    const chat = await app.fetch(new Request('http://localhost/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ conversationId: conversation.id, content: 'hello', providerId: 'mock', modelId: 'mock-model-a', stream: false }) }));
+    expect(chat.status).toBe(200);
+    const inspector = await app.fetch(new Request(`http://localhost/api/inspector/${conversation.id}`));
+    expect((await inspector.json() as any).contextRun.assembledPrompt).toContain('inherited-project-context');
   });
 
   it('paginates long conversations without gaps or duplicates', async () => {

@@ -84,17 +84,20 @@ export function createChatRoutes(db: D1Database, registry: ProviderRegistry, cre
 
     // Ensure conversation
     let convId = body.conversationId;
+    let projectId = body.projectId;
     if (convId) {
       const existing = await convRepo.getConversation(convId, user.id);
       if (!existing) return c.json({ error: 'Conversation not found' }, 404);
-      if (body.projectId !== undefined && existing.projectId !== body.projectId) {
+      if (projectId !== undefined && existing.projectId !== projectId) {
         return c.json({ error: 'Conversation project scope does not match the request' }, 409);
       }
+      // Omitted projectId: inherit the conversation's own project scope.
+      projectId = existing.projectId;
     } else {
       const conv = await convRepo.createConversation(
         user.id,
         body.content.slice(0, 30) || 'New Conversation',
-        body.projectId
+        projectId
       );
       convId = conv.id;
     }
@@ -115,11 +118,11 @@ export function createChatRoutes(db: D1Database, registry: ProviderRegistry, cre
     }
 
     // 2. Fetch active memories & recent messages
-    const activeMemories = await memoryRepo.getActiveMemories(user.id, body.projectId);
+    const activeMemories = await memoryRepo.getActiveMemories(user.id, projectId);
     const recentMessages = (await convRepo.getRecentMessages(convId, 30)).filter((message) => message.id !== regenerationTarget?.id);
 
     // 3. Compose context using ContextEngine
-    const project = body.projectId ? await projectRepo.get(body.projectId, user.id) : null;
+    const project = projectId ? await projectRepo.get(projectId, user.id) : null;
     const composition = contextEngine.compose({
       userId: user.id,
       conversationId: convId,
@@ -172,7 +175,7 @@ export function createChatRoutes(db: D1Database, registry: ProviderRegistry, cre
           // Trigger asynchronous memory candidate extraction
           const newCandidates = await memoryCoordinator.processTurn({
             userId: user.id,
-            projectId: body.projectId,
+            projectId,
             messageId: assistantMsg.id,
             userMessage: userMsg.content,
             assistantMessage: fullAssistantReply,
@@ -213,7 +216,7 @@ export function createChatRoutes(db: D1Database, registry: ProviderRegistry, cre
 
         const newCandidates = await memoryCoordinator.processTurn({
           userId: user.id,
-          projectId: body.projectId,
+          projectId,
           messageId: assistantMsg.id,
           userMessage: userMsg.content,
           assistantMessage: response.content,

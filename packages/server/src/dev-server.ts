@@ -1,6 +1,7 @@
 import { serve } from '@hono/node-server';
 import { createApp } from './app.js';
 import { createLocalDatabase, localDbPath } from './db/local-db.js';
+import type { AuthMode } from './auth/service.js';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -11,7 +12,9 @@ async function start() {
   setInterval(persist,1000);
   process.on('SIGINT',()=>{persist();process.exit(0);});
   process.on('SIGTERM',()=>{persist();process.exit(0);});
-  const app = createApp(db, undefined, { credentialEncryptionKey: process.env.ESPERA_MASTER_ENCRYPTION_KEY });
+  // Local single-user dev (and the e2e suite) runs without login unless ESPERA_AUTH_MODE overrides it.
+  const mode = (process.env.ESPERA_AUTH_MODE as AuthMode | undefined) || 'optional';
+  const app = createApp(db, undefined, { credentialEncryptionKey: process.env.ESPERA_MASTER_ENCRYPTION_KEY, mode });
 
   console.log(`[Espera] Local Server Engine booted successfully on http://127.0.0.1:${port}`);
   serve({

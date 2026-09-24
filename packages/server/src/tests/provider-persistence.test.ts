@@ -4,7 +4,7 @@ import { createApp } from '../app.js';
 
 describe('Provider connection metadata persistence', () => {
   it('persists metadata and model catalog without accepting credentials', async () => {
-    const app = createApp(await createTestDatabase());
+    const app = createApp(await createTestDatabase(), undefined, { mode: 'optional' });
     const create = await app.fetch(new Request('http://localhost/api/providers/connections', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -34,9 +34,22 @@ describe('Provider connection metadata persistence', () => {
     expect((await afterDelete.json() as any).connections).toHaveLength(0);
   });
 
+  it('assigns a fresh id instead of colliding with another user connection id', async () => {
+    const db = await createTestDatabase();
+    const app = createApp(db, undefined, { mode: 'optional' });
+    await db.prepare(`INSERT INTO users (id, name) VALUES ('other_user', 'Other')`).run();
+    await db.prepare(`INSERT INTO provider_connections (id, user_id, provider_id, display_name, auth_mode, status) VALUES ('conn_foreign', 'other_user', 'mock', 'Foreign', 'session', 'active')`).run();
+    const response = await app.fetch(new Request('http://localhost/api/providers/connections', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: 'conn_foreign', name: 'Mine', providerId: 'mock', models: [] }) }));
+    expect(response.status).toBe(201);
+    const saved = await response.json() as any;
+    expect(saved.connection.id).not.toBe('conn_foreign');
+    expect(saved.connection.name).toBe('Mine');
+    expect(await db.prepare(`SELECT display_name as name FROM provider_connections WHERE id = 'conn_foreign'`).first()).toEqual({ name: 'Foreign' });
+  });
+
   it('preserves an encrypted credential when connection metadata is edited without re-entering the key', async () => {
     const masterKey = Buffer.alloc(32, 7).toString('base64');
-    const app = createApp(await createTestDatabase(), undefined, { credentialEncryptionKey: masterKey });
+    const app = createApp(await createTestDatabase(), undefined, { mode: 'optional', credentialEncryptionKey: masterKey });
     const createdResponse = await app.fetch(new Request('http://localhost/api/providers/connections', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Saved mock', providerId: 'mock', models: [{ id: 'mock-model-a', name: 'Mock', contextWindow: 100, supportsStreaming: true }], credential: { apiKey: 'saved-secret' }, rememberCredential: true }) }));
     const created = await createdResponse.json() as any;
     expect(created.connection.credentialStored).toBe(true);

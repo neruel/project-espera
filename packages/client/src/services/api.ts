@@ -15,7 +15,10 @@ import type {
 // Keep API requests same-origin so session cookies work in browsers that block
 // third-party cookies. Cloudflare Pages forwards /api/* to the API Worker.
 const BASE_URL = '';
-const AUTH_ORIGIN = 'https://project-espera-api.hfainvididual.workers.dev';
+// OAuth starts on the API Worker origin. Self-hosted builds set VITE_AUTH_ORIGIN;
+// local development goes through the Vite /api proxy to the local Worker.
+const AUTH_ORIGIN: string = import.meta.env.VITE_AUTH_ORIGIN
+  ?? (import.meta.env.DEV ? '' : 'https://project-espera-api.hfainvididual.workers.dev');
 
 async function request(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   const response = await fetch(input, { ...init, credentials: 'include' });

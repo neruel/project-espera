@@ -19,7 +19,7 @@ ChatGPT, Claude, Gemini 또는 로컬 모델은 계속 교체될 수 있습니�
 ```text
 React UI
   ├─ Chat / Memory / Persona / Projects
-  ├─ Provider Settings / Account / Language
+  ├─ Sidebar / Settings dialog / Account / Theme / Language
   └─ Context Inspector
         │
         ▼
@@ -134,31 +134,35 @@ getCapabilities
 
 ```text
 packages/client/src/
-  App.tsx                 # 인증, 탭, 데이터 초기화
+  App.tsx                 # 인증, 화면 전환, 데이터 초기화
+  theme.ts                # light/dark/system 테마
   i18n.tsx                # 한국어/영어 언어 상태와 사전
   services/api.ts         # credentials 포함 API client
   stores/session.ts       # 비밀값을 제외한 브라우저 상태
   components/
-    Chat/                 # ChatGPT 스타일 workspace
+    Sidebar.tsx           # 새 채팅, 대화 검색·그룹, 페이지 링크, 계정 메뉴
+    Chat/                 # ChatGPT 스타일 workspace, Composer, Model picker
     Memory/               # Memory Inbox와 lifecycle UI
     Persona/              # Persona 편집과 revision
     Projects/             # Project 관리
-    Settings/             # Provider와 언어 설정
+    Settings/             # Settings dialog(일반·연결 탭)
     Auth/                 # Login UI
     Account/              # 계정 메뉴
+    Common/               # Modal, Menu, Logo 등 공통 UI
 ```
 
-언어 설정은 `ko`와 `en`을 지원하며 `espera_language` 키로 브라우저에 저장됩니다. API 데이터와 사용자 API Key는 저장하지 않습니다.
+Settings는 dialog로 열리며 General 탭(테마 light/dark/system, 언어, 키보드 단축키)과 Connections 탭(저장된 connection, 추가 form, OpenAI-compatible용 FactChat·OpenRouter·DeepSeek·Groq 빠른 설정)으로 구성됩니다. 언어 설정은 `ko`와 `en`을 지원하며 `espera_language` 키로 브라우저에 저장됩니다. API 데이터와 사용자 API Key는 저장하지 않습니다.
 
 ## 10. 반응형 UI
 
-Desktop에서는 상단 navigation과 좌측 conversation sidebar를 사용합니다. 모바일에서는 conversation sidebar가 drawer로 전환되고 backdrop을 눌러 닫을 수 있습니다.
+Desktop에서는 접을 수 있는 좌측 sidebar 하나로 탐색합니다. Sidebar에는 새 채팅, 대화 검색, Projects·Memory·Persona 링크, 오늘/어제/이전 7일/이전 30일/월별로 묶인 대화 목록(⋯ 메뉴로 이름 변경·삭제), 하단 계정 메뉴가 있습니다. 별도의 상단 navigation bar는 없습니다.
 
-- 모바일에서 대화 목록은 overlay drawer입니다.
-- 모바일의 Project, Provider, Model 선택은 별도 bottom sheet로 제공됩니다.
-- Chat composer는 화면 폭에 맞게 축소됩니다.
+- 모바일에서 sidebar는 slide-in drawer로 전환되고 backdrop을 눌러 닫을 수 있습니다.
+- Model은 chat header의 model picker에서, Project scope는 composer의 picker에서 선택합니다.
+- 빈 대화는 중앙 정렬된 empty state와 composer로 시작하며, composer는 화면 폭에 맞게 축소됩니다.
 - Memory와 Project 카드는 단일 열로 전환됩니다.
-- Settings form은 모바일에서 한 열로 전환됩니다.
+- Settings dialog는 모바일에서 화면 폭에 맞춰 한 열로 표시됩니다.
+- 단축키: `Ctrl+Shift+O` 새 채팅, `Ctrl+Shift+S` sidebar 토글, `Ctrl+K` 또는 `/` 대화 검색.
 
 ## 11. 보안 경계
 
@@ -168,7 +172,8 @@ Desktop에서는 상단 navigation과 좌측 conversation sidebar를 사용합�
 - 사용자는 계정 메뉴에서 계정과 계정 소유 데이터를 삭제할 수 있으며, 연결된 데이터베이스 행은 cascade 삭제됩니다.
 - 브라우저는 Pages origin의 `/api/*`를 사용하고 Pages Function이 Worker에 전달해 모바일 third-party cookie 의존성을 제거합니다.
 - Worker write 요청은 production frontend `Origin`으로 제한하고 API 응답은 캐시되지 않도록 합니다.
-- Production endpoint policy는 `official-only`이며 임의 custom host의 SSRF/DNS rebinding 위험을 차단합니다.
+- Production endpoint policy는 `allowlisted-https`이며 공식 Provider와 운영자가 허용한 OpenAI-compatible host만 HTTPS/443으로 허용해 임의 custom host의 SSRF/DNS rebinding 위험을 줄입니다.
+- AI 응답 Markdown의 신뢰할 수 없는 원격 이미지는 렌더링하지 않아 이미지 URL을 통한 데이터 유출을 막습니다.
 - Provider 오류는 정규화하고 credential을 redaction합니다.
 - Context Inspector는 인증정보를 표시하지 않습니다.
 

@@ -61,8 +61,9 @@ export class ProviderConnectionRepository {
     rememberCredential?: boolean;
     masterKey?: string;
   }): Promise<ProviderConnectionRecord> {
-    const id = input.id || `conn_${crypto.randomUUID()}`;
-    const existing = await this.db.prepare('SELECT id, auth_mode as authMode, encrypted_secret as encryptedSecret, encryption_version as encryptionVersion, nonce FROM provider_connections WHERE id = ? AND user_id = ?').bind(id, input.userId).first<any>();
+    const existing = input.id ? await this.db.prepare('SELECT id, auth_mode as authMode, encrypted_secret as encryptedSecret, encryption_version as encryptionVersion, nonce FROM provider_connections WHERE id = ? AND user_id = ?').bind(input.id, input.userId).first<any>() : null;
+    // Never reuse a client-supplied id the caller does not own (it may belong to another user).
+    const id: string = existing?.id ?? `conn_${crypto.randomUUID()}`;
     let encryptedSecret: { ciphertext: string; nonce: string; version: number } | null = null;
     if (input.rememberCredential && input.apiKey) {
       if (!input.apiKey || !input.masterKey) throw new Error('Persistent credential storage is not configured or the API key is missing');

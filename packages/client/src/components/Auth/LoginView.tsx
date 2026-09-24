@@ -1,34 +1,29 @@
 import React from 'react';
-import { Github, ShieldCheck, Sparkles } from 'lucide-react';
-import type { AuthState } from '../../services/api.js';
-import { api } from '../../services/api.js';
+import { Github } from 'lucide-react';
+import { api, type AuthState } from '../../services/api.js';
 import { useLanguage } from '../../i18n.js';
+import { Logo } from '../Common/Logo.js';
 
-export const LoginView: React.FC<{ auth: AuthState }> = ({ auth }) => {
+export function LoginView({ auth }: { auth: AuthState }) {
   const { t } = useLanguage();
   return (
-  <main className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center px-6 py-12">
-    <div className="w-full max-w-md">
-      <div className="text-center mb-8">
-        <div className="mx-auto mb-5 w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-400 to-indigo-600 flex items-center justify-center text-2xl font-bold shadow-xl shadow-sky-950/50">E</div>
-        <h1 className="text-3xl font-semibold tracking-tight">{t('auth.welcome')}</h1>
-        <p className="mt-3 text-sm leading-6 text-slate-400">{t('auth.body')}</p>
-      </div>
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/20">
-        <div className="space-y-4 mb-6">
-          <div className="flex gap-3"><Sparkles className="w-5 h-5 text-sky-400 shrink-0" /><p className="text-sm text-slate-300">Switch between AI providers without losing what matters to you.</p></div>
-          <div className="flex gap-3"><ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" /><p className="text-sm text-slate-300">Your account keeps your memory separate from every other user.</p></div>
+    <main className="flex min-h-[100dvh] items-center justify-center bg-bg px-6 py-12 text-fg">
+      <div className="w-full max-w-sm text-center">
+        <Logo className="mx-auto h-12 w-12" />
+        <h1 className="mt-8 text-[28px] font-semibold tracking-[-0.02em]">{t('auth.welcome')}</h1>
+        <p className="mt-3 text-[15px] leading-7 text-fg-2">{t('auth.body')}</p>
+        <div className="mt-10">
+          {auth.configured ? (
+            <button type="button" onClick={() => api.loginWithGitHub()} className="btn btn-primary h-12 w-full text-[15px]">
+              <Github className="h-5 w-5" />
+              {t('auth.github')}
+            </button>
+          ) : (
+            <p className="notice">{t('auth.notConfigured')}</p>
+          )}
         </div>
-        {auth.configured ? (
-          <button onClick={() => api.loginWithGitHub()} className="inline-flex w-full items-center justify-center gap-3 rounded-xl border border-neutral-600 bg-neutral-700 px-4 py-3 text-sm font-semibold text-neutral-100 transition hover:bg-neutral-600">
-            <Github className="w-5 h-5" /> {t('auth.github')}
-          </button>
-        ) : (
-          <div className="rounded-xl border border-amber-800/60 bg-amber-950/30 px-4 py-3 text-sm text-amber-200">{t('auth.notConfigured')}</div>
-        )}
-        <p className="mt-4 text-center text-xs text-slate-500">Espera never stores your provider API keys.</p>
-      </section>
-    </div>
-  </main>
+        <p className="mt-6 text-xs leading-5 text-fg-3">{t('auth.keyNote')}</p>
+      </div>
+    </main>
   );
-};
+}

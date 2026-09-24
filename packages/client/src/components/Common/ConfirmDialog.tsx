@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from 'react';
-import { AlertTriangle, X } from 'lucide-react';
 import { useLanguage } from '../../i18n.js';
 
 interface ConfirmDialogProps {
@@ -42,14 +41,18 @@ export function ConfirmDialog({ open, title, description, confirmLabel, busy = f
   }, [open, busy, onClose]);
 
   if (!open) return null;
-  return <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
-    <section role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-description" className="workspace-section w-full max-w-md p-5 shadow-2xl shadow-black/50">
-      <div className="flex items-start gap-3">
-        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${danger ? 'bg-rose-950/60 text-rose-300' : 'bg-neutral-800 text-neutral-300'}`}><AlertTriangle className="h-4 w-4" /></div>
-        <div className="min-w-0 flex-1"><h2 id="confirm-title" className="text-sm font-semibold text-neutral-100">{title}</h2><p id="confirm-description" className="mt-2 text-xs leading-5 text-neutral-500">{description}</p></div>
-        <button type="button" disabled={busy} aria-label={t('common.close')} onClick={onClose} className="rounded-lg p-2 text-neutral-600 hover:bg-neutral-800 hover:text-neutral-200 disabled:opacity-40"><X className="h-4 w-4" /></button>
-      </div>
-      <div className="mt-6 flex justify-end gap-2"><button ref={cancelRef} type="button" disabled={busy} className="workspace-button" onClick={onClose}>{t('common.cancel')}</button><button type="button" disabled={busy} className={`workspace-button ${danger ? '!border-rose-900 !bg-rose-950/50 !text-rose-200 hover:!bg-rose-900/60' : 'workspace-button-primary'}`} onClick={onConfirm}>{busy ? t('common.loading') : (confirmLabel || t('common.delete'))}</button></div>
-    </section>
-  </div>;
+  return (
+    <div className="dialog-backdrop z-[90]" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
+      <section role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-description" className="dialog max-w-md p-6">
+        <h2 id="confirm-title" className="text-lg font-semibold">{title}</h2>
+        <p id="confirm-description" className="mt-2 text-sm leading-6 text-fg-2">{description}</p>
+        <div className="mt-6 flex justify-end gap-2">
+          <button ref={cancelRef} type="button" disabled={busy} className="btn btn-secondary" onClick={onClose}>{t('common.cancel')}</button>
+          <button type="button" disabled={busy} className={`btn ${danger ? 'btn-danger' : 'btn-primary'}`} onClick={onConfirm}>
+            {busy ? t('common.loading') : (confirmLabel || t('common.delete'))}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
 }

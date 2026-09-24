@@ -291,6 +291,18 @@ describe('Unit Tests - Project Espera Core Subsystems', () => {
     expect(revisions[0].changeReason).toBe('User refined canonical phrasing');
   });
 
+  it('only edits pending or active memories owned by the caller', async () => {
+    await userRepo.ensureUser('other_user', 'Other');
+    const base = { type: 'project' as const, subject: 's', predicate: 'p', valueJson: 'v', canonicalText: 'original', evidenceSnippet: 'e' };
+    const rejected = await memoryRepo.createCandidate({ ...base, userId: 'test_user' });
+    await memoryRepo.rejectMemory(rejected.id, 'test_user');
+    await expect(memoryRepo.editAndApproveMemory(rejected.id, 'test_user', { canonicalText: 'revived', changeReason: 'x' })).rejects.toThrow(/Only pending or active/);
+    expect((await memoryRepo.getMemoryById(rejected.id, 'test_user'))!.status).toBe('rejected');
+    const foreign = await memoryRepo.createCandidate({ ...base, userId: 'other_user' });
+    await expect(memoryRepo.editAndApproveMemory(foreign.id, 'test_user', { canonicalText: 'hijack', changeReason: 'x' })).rejects.toThrow(/not found/);
+    expect((await memoryRepo.getMemoryById(foreign.id, 'other_user'))!.canonicalText).toBe('original');
+  });
+
   // Test 8: Provider change preserves identical context memory
   it('8. Context Engine delivers identical memory context even when Provider or Model changes', () => {
     const memory: Memory = {

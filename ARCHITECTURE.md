@@ -166,7 +166,7 @@ Provider Registry에는 Mock, OpenAI, Anthropic, Gemini, OpenAI-compatible adapt
 Session-only 키 데이터 흐름:
 
 ```text
-Settings password input → React RAM → POST X-Espera-Credential
+Settings dialog password input → React RAM → POST X-Espera-Credential
 → Hono route local variable → Provider adapter Authorization/x-api-key header
 → request completion 후 참조 해제
 ```

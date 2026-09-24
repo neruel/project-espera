@@ -33,7 +33,7 @@ export function normalizeBaseUrl(value: string | undefined, fallback: string) {
   if (raw.length > 2048) throw new ProviderError('invalid_endpoint', 'Endpoint URL is too long', 400);
   let url: URL;
   try { url = new URL(raw); } catch { throw new ProviderError('invalid_endpoint', 'Invalid API base URL', 400); }
-  if (url.username || url.password) throw new ProviderError('invalid_endpoint', 'URL 자격증명은 허용되지 않습니다', 400);
+  if (url.username || url.password) throw new ProviderError('invalid_endpoint', 'URL credentials are not allowed', 400);
   if (url.hash) throw new ProviderError('invalid_endpoint', 'Endpoint fragments are not allowed', 400);
   if (url.search) throw new ProviderError('invalid_endpoint', 'Endpoint query strings are not allowed', 400);
   const policy = configuredEndpointPolicy || process.env.ESPERA_ENDPOINT_POLICY || (process.env.NODE_ENV === 'production' ? 'official-only' : 'development-local');

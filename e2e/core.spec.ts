@@ -6,11 +6,12 @@ test('opens the workspace and manages a project scope', async ({ page }) => {
   page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
 
   await page.goto('/');
-  await expect(page.getByText('Project Espera', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'What can I help with?' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Projects' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Projects' }).click();
   await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
+  await page.getByRole('button', { name: 'New project' }).click();
   await page.getByLabel('Project name').fill('Browser smoke project');
   await page.getByLabel('What belongs in this project?').fill('Created by Playwright and removed after verification.');
   await page.getByRole('button', { name: 'Create project' }).click();
@@ -38,17 +39,21 @@ test('keeps the chat workspace usable on a mobile viewport', async ({ page }) =>
   await page.addInitScript(() => localStorage.setItem('espera_language', 'en'));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await expect(page.getByText('Project Espera', { exact: true }).last()).toBeVisible();
-  await expect(page.getByLabel('Open conversations')).toBeVisible();
-  await page.getByLabel('Open conversations').click();
-  await expect(page.getByText('Conversations', { exact: true }).first()).toBeVisible();
-  await page.getByLabel('Close conversations').click();
-  await expect(page.getByLabel('Open conversations')).toBeVisible();
-  await page.getByLabel('Choose model and project').click();
-  await expect(page.getByRole('dialog', { name: 'Choose model and project' })).toBeVisible();
-  await expect(page.getByRole('dialog').getByLabel('Provider')).toBeVisible();
-  await page.getByRole('dialog').getByRole('button', { name: 'Done' }).click();
-  await expect(page.getByRole('dialog', { name: 'Choose model and project' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'What can I help with?' })).toBeVisible();
+  const openSidebar = page.getByRole('button', { name: 'Open sidebar' });
+  await expect(openSidebar).toBeVisible();
+  await openSidebar.click();
+  await expect(page.getByRole('button', { name: 'Search chats' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close sidebar' }).click();
+  await expect(page.getByRole('button', { name: 'Search chats' })).toBeHidden();
+  await expect(openSidebar).toBeVisible();
+
+  await page.getByRole('button', { name: /^Model:/ }).click();
+  await expect(page.getByRole('menu', { name: 'Model' })).toBeVisible();
+  await page.getByRole('menuitemradio', { name: /^Mock Model Beta/ }).click();
+  await expect(page.getByRole('menu', { name: 'Model' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Model: Mock Model Beta/ })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Ask anything' })).toBeVisible();
 });
 
 test('completes a GitHub handoff before auth checks on mobile', async ({ page }) => {
@@ -77,7 +82,7 @@ test('completes a GitHub handoff before auth checks on mobile', async ({ page })
   });
 
   await page.goto('/#espera_handoff=single-use-test-handoff');
-  await expect(page.getByLabel('Open conversations')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open sidebar' })).toBeVisible();
   expect(await page.evaluate(() => window.location.hash)).toBe('');
   expect(exchanged).toBe(true);
 });

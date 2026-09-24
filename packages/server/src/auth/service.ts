@@ -48,7 +48,7 @@ export function cookie(name: string, value: string, options: { maxAge?: number; 
 export class AuthService {
   readonly mode: AuthMode;
   constructor(private db: D1Database, private config: AuthConfig = {}) {
-    this.mode = config.mode || 'optional';
+    this.mode = config.mode || 'required';
   }
 
   isConfigured(): boolean {
@@ -77,6 +77,8 @@ export class AuthService {
     const redirectUri = this.config.githubRedirectUri || `${requestUrl.origin}/api/auth/github/callback`;
     const state = randomToken();
     await this.db.prepare(`DELETE FROM oauth_handoffs WHERE expires_at <= datetime('now')`).run();
+    await this.db.prepare(`DELETE FROM oauth_states WHERE expires_at <= datetime('now')`).run();
+    await this.db.prepare(`DELETE FROM sessions WHERE expires_at <= datetime('now')`).run();
     await this.db.prepare(`INSERT INTO oauth_states (state, provider, redirect_uri, expires_at) VALUES (?, 'github', ?, datetime('now', '+10 minutes'))`).bind(state, redirectUri).run();
     const authorize = new URL('https://github.com/login/oauth/authorize');
     authorize.searchParams.set('client_id', this.config.githubClientId!);

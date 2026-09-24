@@ -18,7 +18,7 @@ describe('Provider connections and endpoint security', () => {
     expect(normalizeBaseUrl('http://localhost:1234/v1', '')).toBe('http://localhost:1234/v1');
     expect(() => normalizeBaseUrl('http://example.com/v1', '')).toThrow(/HTTPS/);
     expect(() => normalizeBaseUrl('file:///tmp/key', '')).toThrow();
-    expect(() => normalizeBaseUrl('https://user:pass@example.com/v1', '')).toThrow(/자격증명/);
+    expect(() => normalizeBaseUrl('https://user:pass@example.com/v1', '')).toThrow(/credentials are not allowed/);
   });
 
   it('allows configured compatible API hosts and blocks arbitrary or private destinations', () => {

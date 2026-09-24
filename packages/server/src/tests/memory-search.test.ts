@@ -12,7 +12,7 @@ describe('Memory search and pagination', () => {
     const repository = new MemoryRepository(db);
     for (let index = 0; index < 7; index++) await repository.createCandidate({ userId: 'user_default', type: 'goal', subject: 'user', predicate: 'builds', valueJson: `Espera ${index}`, canonicalText: `Build Espera milestone ${index}` });
     await repository.createCandidate({ userId: 'other_user', type: 'goal', subject: 'other', predicate: 'builds', valueJson: 'private', canonicalText: 'Build Espera private milestone' });
-    const app = createApp(db);
+    const app = createApp(db, undefined, { mode: 'optional' });
     const firstResponse = await app.fetch(new Request('http://localhost/api/memories?q=Espera&type=goal&limit=5&sort=updated'));
     const first = await firstResponse.json() as any;
     expect(first.memories).toHaveLength(5);

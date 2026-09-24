@@ -14,6 +14,23 @@ describe('authentication boundary', () => {
     expect(protectedResponse.status).toBe(401);
   });
 
+  it('defaults to required auth when no mode is configured', async () => {
+    const app = createApp(await createTestDatabase());
+    expect((await app.fetch(new Request('http://localhost/api/conversations'))).status).toBe(401);
+  });
+
+  it('purges expired OAuth states and sessions when a login starts', async () => {
+    const db = await createTestDatabase();
+    const app = createApp(db, undefined, { mode: 'required', githubClientId: 'id', githubClientSecret: 'secret' });
+    await db.prepare(`INSERT INTO users (id, name) VALUES ('user_expired', 'Expired')`).run();
+    await db.prepare(`INSERT INTO oauth_states (state, provider, redirect_uri, expires_at) VALUES ('old_state', 'github', 'x', datetime('now', '-1 minute'))`).run();
+    await db.prepare(`INSERT INTO sessions (id, user_id, token_hash, expires_at) VALUES ('old_session', 'user_expired', 'h1', datetime('now', '-1 minute')), ('live_session', 'user_expired', 'h2', datetime('now', '+1 day'))`).run();
+    expect((await app.fetch(new Request('http://localhost/api/auth/github'))).status).toBe(302);
+    expect(await db.prepare(`SELECT state FROM oauth_states WHERE state = 'old_state'`).first()).toBeNull();
+    expect(await db.prepare(`SELECT id FROM sessions WHERE id = 'old_session'`).first()).toBeNull();
+    expect(await db.prepare(`SELECT id FROM sessions WHERE id = 'live_session'`).first()).not.toBeNull();
+  });
+
   it('rejects cross-origin state-changing requests', async () => {
     const app = createApp(await createTestDatabase(), undefined, {
       mode: 'required',

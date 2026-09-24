@@ -222,18 +222,20 @@ export class MemoryRepository {
   ): Promise<Memory> {
     const current = await this.getMemoryById(id, userId);
     if (!current) throw new Error(`Memory not found: ${id}`);
+    if (current.status !== 'pending' && current.status !== 'active') throw new Error('Only pending or active memories can be edited');
 
     const importance = update.importance ?? current.importance;
     const type = update.type ?? current.type;
 
-    await this.db
+    const result = await this.db
       .prepare(
         `UPDATE memories
          SET status = 'active', canonical_text = ?, importance = ?, type = ?, updated_at = datetime('now')
-         WHERE id = ?`
+         WHERE id = ? AND user_id = ? AND status IN ('pending', 'active')`
       )
-      .bind(update.canonicalText, importance, type, id)
+      .bind(update.canonicalText, importance, type, id, userId)
       .run();
+    if ((result.meta?.changes ?? 0) === 0) throw new Error(`Memory not found: ${id}`);
 
     await this.db
       .prepare(

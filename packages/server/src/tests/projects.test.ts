@@ -4,7 +4,7 @@ import { createApp } from '../app.js';
 
 describe('Project scope persistence', () => {
   it('creates, lists, and deletes projects', async () => {
-    const app = createApp(await createTestDatabase());
+    const app = createApp(await createTestDatabase(), undefined, { mode: 'optional' });
     const createdResponse = await app.fetch(new Request('http://localhost/api/projects', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ name: 'Espera roadmap', description: 'Long-term product context' }),
