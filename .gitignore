@@ -3,6 +3,13 @@ dist/
 .env
 .env.*
 !.env.example
+.dev.vars
+.dev.vars.*
+.envrc
+*.pem
+*.key
+secrets.json
+.secrets*
 .wrangler/
 .data/
 *.sqlite

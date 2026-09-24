@@ -1,53 +1,28 @@
 # Project Espera — Current State
 
-Updated: 2026-09-19
+Updated: 2026-09-24
 
 ## Product boundary
 
-Espera is a provider-independent persistence layer for persona, user-controlled memory, conversations, and project context. The current implementation uses a single local default user and is therefore suitable for a personal MVP, not yet a multi-user SaaS deployment.
+Espera is a provider-independent persistence layer for persona, user-controlled memory, conversations, and project context. Its production Worker requires a GitHub OAuth session and scopes stored data by authenticated user.
 
-## Implemented and verified
+## Implemented
 
-- React/Vite client and Hono server workspace.
-- SQLite-compatible local adapter and sequential D1 migrations.
-- Conversations and messages persisted through repositories.
-- Persona editing with versioned revisions.
-- Memory candidates, evidence, revisions, approval, rejection, soft delete, and hard delete.
-- Context composition from persona, active memories, and recent messages.
-- Context Inspector with persisted context runs.
-- Mock, OpenAI, Anthropic, Gemini, and OpenAI-compatible provider adapters.
-- Session-only BYOK credential transport; credentials are not written to D1 or Web Storage.
-- Model discovery and manual model selection UI.
-- Baseline `npm ci`, lint, typecheck, tests, and production build pass.
+- React/Vite client, Hono API Worker, local SQLite-compatible adapter, and sequential D1 migrations.
+- Conversations, persona revisions, memory review and history, context inspection, projects, and provider connections.
+- GitHub OAuth sessions with hashed tokens, `HttpOnly`, `Secure`, `SameSite=Lax` host-only cookies.
+- Pages same-origin `/api/*` proxy and one-time OAuth handoff so mobile browsers do not need third-party cookies; the existing Worker OAuth callback remains valid.
+- BYOK keys are tab-memory only unless the user opts into AES-GCM encrypted D1 storage.
+- Users can delete their account and all account-owned data from the account menu.
+- Production Worker configuration requires authentication, restricts write origins, disables API caching, and permits official Provider endpoints only.
+- `.gitignore` excludes environment files, Wrangler state, local databases, and private key files.
 
-## Known gaps
+## Beta deployment
 
-- Provider connection metadata and model catalogs are persisted in D1; API keys remain session-only.
-- Authentication is intentionally a single local default user. A production deployment needs an explicit auth boundary before exposing private data publicly.
-- Projects now have D1-backed create/list/delete workflows, a dedicated UI, and project-scoped context injection in chat.
-- Automated Chat retry UX and streaming cancellation are implemented. Playwright browser E2E now covers workspace navigation, project lifecycle, Settings access, and Web Storage credential invariants.
-- A dedicated `project-espera-db` D1 has been created, wired into `packages/server/wrangler.toml`, migrated, and used by the deployed Worker.
-- Production CORS is restricted to `https://project-espera-web.pages.dev`; local development and tests retain wildcard CORS by omission.
-- DNS rebinding protection for arbitrary custom hosts cannot be fully enforced by the current Worker-only URL parser; production should prefer official endpoints or an explicit allowlist.
-- Wrangler 4.135.0 is installed and the Worker has been redeployed successfully.
+- D1 migration `0005_oauth_handoffs.sql` is applied to `project-espera-db`.
+- Worker `project-espera-api` and Pages project `project-espera-web` run the `1.0.0-beta.1` build.
+- Pages forwards same-origin `/api/*` requests to the Worker; production `/api/auth/me` confirms auth is required and GitHub OAuth is configured.
+- Production smoke checks pass for health, CORS, and the unauthenticated API boundary.
+- The production endpoint policy is `official-only`; custom Provider endpoints remain available only in self-hosted deployments after an SSRF review.
 
-## Security findings addressed in this pass
-
-- Anthropic requests now use the common endpoint validation, manual redirect blocking, and redacted provider error path.
-- Generic application errors no longer return raw exception messages to clients.
-- `.gitignore` excludes environment files, local databases, Wrangler state, logs, and build output.
-
-## Priority order
-
-1. Add explicit production authentication before broad public use.
-
-## Deployment verified
-
-- API Worker: `project-espera-api` at `https://project-espera-api.hfainvididual.workers.dev`
-- Frontend Pages project: `project-espera-web` at `https://project-espera-web.pages.dev`
-- D1: `project-espera-db` (migrations 0001, 0002, and 0003 applied)
-- Production smoke path: health → providers → persona → conversation → Mock chat → pending memory → frontend load
-- Provider persistence smoke path: create metadata → reload from D1 → verify credential redaction → delete
-- Project context smoke path: create project → chat with project scope → inspect prompt → delete
-- Repeatable production smoke command: `ESPERA_API_URL=https://project-espera-api.hfainvididual.workers.dev npm run test:production`
-- Browser E2E command: `npm run test:e2e` (2 scenarios passed locally)
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for deployment steps and [THREAT_MODEL.md](./THREAT_MODEL.md) for the security boundaries.

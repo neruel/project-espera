@@ -33,7 +33,7 @@ export class MemoryLifecycleCoordinator {
       return [];
     }
 
-    const existing = await this.memoryRepo.getMemories(params.userId);
+    const existing = await this.memoryRepo.getMemories(params.userId, { projectId: params.projectId ?? null });
     const created: Memory[] = [];
 
     for (const candidate of candidates) {

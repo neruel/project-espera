@@ -1,5 +1,9 @@
 # Project Espera
 
+**1.0.0 Beta** · [Open the live demo](https://project-espera-web.pages.dev)
+
+Demo는 개인이 운영하는 베타 서비스입니다. 민감하거나 기밀인 정보를 입력하지 마세요. 저장 항목과 계정 데이터 삭제 방법은 [개인정보 안내](./PRIVACY.md)를 확인하세요.
+
 Project Espera는 특정 AI 회사나 모델에 종속되지 않는 개인용 지속형 AI workspace입니다.
 
 사용자가 OpenAI, Claude, Gemini, OpenRouter, LM Studio, vLLM 등 서로 다른 모델을 사용하더라도 Espera가 관리하는 다음 맥락은 계속 유지됩니다.
@@ -77,7 +81,7 @@ npm run test:e2e
 
 Settings에서 Provider, 연결 이름, Base URL, API Key를 입력합니다. 기본 모드에서는 API Key를 D1, Web Storage, URL, 로그, Context Inspector에 저장하지 않으며 현재 브라우저 탭에서만 사용합니다.
 
-새로고침하면 연결 metadata는 유지되지만 API Key는 다시 입력해야 합니다.
+암호화 저장을 선택하지 않은 경우 새로고침 후 API Key를 다시 입력해야 합니다. 계정에 저장한 Key는 로그인 후 복호화해 사용할 수 있습니다.
 
 Settings에서 “계정에 API Key 기억하기”를 선택하면 API Key를 Worker 전용 Master Key로 AES-GCM 암호화하여 Provider connection과 함께 저장할 수 있습니다. 원본 Key는 API 응답이나 D1 조회 결과에 포함되지 않습니다. 이 기능을 사용하려면 Cloudflare Secret에 32바이트 Base64 키를 등록해야 합니다.
 
@@ -95,9 +99,12 @@ GitHub OAuth App callback URL:
 https://project-espera-api.hfainvididual.workers.dev/api/auth/github/callback
 ```
 
+OAuth 시작은 Worker에서 처리하고, callback은 짧게 만료되는 1회용 handoff를 프런트엔드로 전달합니다. 프런트엔드는 Pages Function을 통해 Worker와 같은 출처로 세션을 교환하므로 모바일 브라우저의 교차 사이트 쿠키 차단을 피합니다. API Worker 주소가 바뀌면 `functions/api/[[path]].ts`와 `packages/client/src/services/api.ts`의 기본 주소를 변경하거나 Pages 런타임 변수 `ESPERA_API_ORIGIN`을 설정하세요.
+
 Cloudflare secret:
 
 ```bash
+cd packages/server
 npx wrangler secret put GITHUB_CLIENT_ID
 npx wrangler secret put GITHUB_CLIENT_SECRET
 ```
@@ -110,13 +117,12 @@ npx wrangler secret put GITHUB_CLIENT_SECRET
 cd packages/server
 npx wrangler d1 migrations apply project-espera-db --remote
 npx wrangler deploy
-```
-
-```powershell
-$env:VITE_API_BASE_URL="https://project-espera-api.hfainvididual.workers.dev"
+cd ../..
 npm run build
 npx wrangler pages deploy packages/client/dist --project-name project-espera-web
 ```
+
+Pages 배포는 저장소 루트에서 실행해야 `functions/`의 API 프록시가 함께 배포됩니다. GitHub OAuth App의 callback URL은 Worker 주소로 유지하세요. Worker와 Pages를 배포하고 D1에 migration 0005를 적용하세요. 운영 Worker는 공식 Provider endpoint만 허용하며, 인증되지 않은 요청은 거부합니다.
 
 현재 production:
 
@@ -131,9 +137,16 @@ npx wrangler pages deploy packages/client/dist --project-name project-espera-web
 
 상세 아키텍처는 [ARCHITECTURE.md](./ARCHITECTURE.md), 보안 분석은 [THREAT_MODEL.md](./THREAT_MODEL.md)에 정리되어 있습니다.
 
+Demo의 데이터 처리와 삭제 방법은 [PRIVACY.md](./PRIVACY.md), 취약점 제보 방법은 [SECURITY.md](./SECURITY.md)를 참고하세요.
+
+## 라이선스
+
+현재 저장소에는 라이선스가 지정되어 있지 않습니다. 코드 재사용이나 재배포 권한이 필요하면 별도 허가를 받으세요.
+
 ## 알려진 제한
 
 - OAuth 로그인은 현재 GitHub provider만 지원합니다.
+- 공개 Demo는 공식 OpenAI, Anthropic, Google endpoint만 허용합니다. OpenAI-compatible endpoint는 자체 배포에서 사용할 수 있습니다.
 - API Key는 기본적으로 새로고침 후 재입력이 필요하며, 사용자가 선택하면 암호화 저장할 수 있습니다.
 - Memory 검색은 현재 D1 키워드 검색 중심입니다.
 - 실제 Provider live test는 별도 API Key와 비용이 발생할 수 있으므로 opt-in입니다.

@@ -19,7 +19,7 @@ export default {
     setEndpointPolicy(env.ESPERA_ENDPOINT_POLICY);
     const app = createApp(env.DB, undefined, {
       allowedOrigin: env.ESPERA_ALLOWED_ORIGIN,
-      mode: env.ESPERA_AUTH_MODE,
+      mode: env.ESPERA_AUTH_MODE || 'required',
       githubClientId: env.GITHUB_CLIENT_ID,
       githubClientSecret: env.GITHUB_CLIENT_SECRET,
       githubRedirectUri: env.GITHUB_OAUTH_REDIRECT_URI,

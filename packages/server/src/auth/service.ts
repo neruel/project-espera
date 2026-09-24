@@ -76,6 +76,7 @@ export class AuthService {
     const requestUrl = new URL(request.url);
     const redirectUri = this.config.githubRedirectUri || `${requestUrl.origin}/api/auth/github/callback`;
     const state = randomToken();
+    await this.db.prepare(`DELETE FROM oauth_handoffs WHERE expires_at <= datetime('now')`).run();
     await this.db.prepare(`INSERT INTO oauth_states (state, provider, redirect_uri, expires_at) VALUES (?, 'github', ?, datetime('now', '+10 minutes'))`).bind(state, redirectUri).run();
     const authorize = new URL('https://github.com/login/oauth/authorize');
     authorize.searchParams.set('client_id', this.config.githubClientId!);
@@ -110,7 +111,10 @@ export class AuthService {
     };
     const profileResponse = await fetch('https://api.github.com/user', { headers });
     if (!profileResponse.ok) return Response.json({ error: 'github_profile_lookup_failed' }, { status: 502 });
-    const profile = await profileResponse.json() as { id: number; login: string; name?: string; email?: string | null; avatar_url?: string };
+    const profile = await profileResponse.json() as { id?: number; login?: string; name?: string; email?: string | null; avatar_url?: string };
+    if (!Number.isSafeInteger(profile.id) || !profile.id || typeof profile.login !== 'string') {
+      return Response.json({ error: 'github_profile_invalid' }, { status: 502 });
+    }
     let email = profile.email || null;
     if (!email) {
       const emailsResponse = await fetch('https://api.github.com/user/emails', { headers });
@@ -125,14 +129,49 @@ export class AuthService {
       VALUES (?, ?, ?, 'github', ?, ?)
       ON CONFLICT(id) DO UPDATE SET name = excluded.name, email = excluded.email, avatar_url = excluded.avatar_url, updated_at = datetime('now')
     `).bind(userId, profile.name || profile.login, email, String(profile.id), profile.avatar_url || null).run();
+    const handoff = randomToken();
+    await this.db.prepare(`INSERT INTO oauth_handoffs (token_hash, user_id, expires_at) VALUES (?, ?, datetime('now', '+2 minutes'))`).bind(await sha256(handoff), userId).run();
+    const frontend = new URL(this.config.frontendOrigin || new URL(request.url).origin);
+    frontend.pathname = '/';
+    frontend.search = '';
+    frontend.hash = new URLSearchParams({ espera_handoff: handoff }).toString();
+    const response = new Response(null, { status: 302, headers: { Location: frontend.toString() } });
+    response.headers.append('Set-Cookie', cookie('espera_oauth_state', '', { maxAge: 0, path: '/api/auth' }));
+    return response;
+  }
+
+  async exchangeGithubHandoff(request: Request): Promise<Response> {
+    const body = await request.json().catch(() => null) as { ticket?: unknown } | null;
+    const ticket = body?.ticket;
+    if (typeof ticket !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(ticket)) {
+      return Response.json({ error: 'invalid_handoff' }, { status: 400 });
+    }
+
+    const handoff = await this.db.prepare(`
+      DELETE FROM oauth_handoffs
+      WHERE token_hash = ? AND expires_at > datetime('now')
+      RETURNING user_id as userId
+    `).bind(await sha256(ticket)).first<{ userId: string }>();
+    if (!handoff) return Response.json({ error: 'invalid_or_expired_handoff' }, { status: 401 });
+
     const rawSession = randomToken();
-    await this.db.prepare(`INSERT INTO sessions (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, datetime('now', '+30 days'))`).bind(`session_${crypto.randomUUID()}`, userId, await sha256(rawSession)).run();
-    return new Response(null, { status: 302, headers: { Location: `${this.config.frontendOrigin || new URL(request.url).origin}/`, 'Set-Cookie': cookie('espera_session', rawSession, { maxAge: 60 * 60 * 24 * 30, sameSite: 'None' }) } });
+    await this.db.prepare(`INSERT INTO sessions (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, datetime('now', '+30 days'))`)
+      .bind(`session_${crypto.randomUUID()}`, handoff.userId, await sha256(rawSession)).run();
+    return Response.json({ ok: true }, {
+      headers: { 'Set-Cookie': cookie('espera_session', rawSession, { maxAge: 60 * 60 * 24 * 30, sameSite: 'Lax' }) },
+    });
   }
 
   async logout(request: Request): Promise<Response> {
     const raw = cookieValue(request.headers.get('Cookie') || undefined, 'espera_session');
     if (raw) await this.db.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(await sha256(raw)).run();
+    return Response.json({ ok: true }, { headers: { 'Set-Cookie': cookie('espera_session', '', { maxAge: 0 }) } });
+  }
+
+  async deleteAccount(request: Request): Promise<Response> {
+    const user = await this.currentUser(request);
+    if (!user) return Response.json({ error: 'authentication_required' }, { status: 401 });
+    await this.db.prepare('DELETE FROM users WHERE id = ?').bind(user.id).run();
     return Response.json({ ok: true }, { headers: { 'Set-Cookie': cookie('espera_session', '', { maxAge: 0 }) } });
   }
 

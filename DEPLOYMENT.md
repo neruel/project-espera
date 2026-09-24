@@ -34,18 +34,38 @@ npx wrangler whoami
 npx wrangler d1 list
 ```
 
-Use only the dedicated `project-espera-db` database configured in `packages/server/wrangler.toml`. Apply migrations with `npx wrangler d1 migrations apply <database-name> --remote`, then deploy the Worker with `npx wrangler deploy`.
+Use only the dedicated `project-espera-db` database configured in `packages/server/wrangler.toml`. Apply migrations with `npx wrangler d1 migrations apply project-espera-db --remote`, then deploy the Worker from `packages/server` with `npx wrangler deploy`.
 
-The current Worker has a single default user and is not suitable for a public multi-user deployment without an authentication layer. Production CORS is pinned to the Pages origin in `wrangler.toml`.
+Production requires GitHub OAuth and fails closed when `ESPERA_AUTH_MODE` is not set. Browser write requests with an `Origin` header must match the configured Pages origin. Production Provider endpoints are restricted to official OpenAI, Anthropic, and Google hosts to reduce SSRF risk.
+
+The browser calls `/api/*` on its own Pages origin. The Pages Function in `functions/api/[[path]].ts` forwards those requests to the Worker so session cookies remain first-party on mobile browsers. Deploy Pages from the repository root so Wrangler includes `functions/`:
+
+```bash
+npm run build
+npx wrangler pages deploy packages/client/dist --project-name project-espera-web
+```
+
+If the API Worker URL changes, update `DEFAULT_API_ORIGIN` in the Pages Function or set the Pages runtime variable `ESPERA_API_ORIGIN` to its HTTPS origin.
+
+The GitHub OAuth App callback remains on the Worker origin. OAuth starts directly on the Worker so its state cookie returns to the registered callback. The Worker redirects to Pages with a short-lived, single-use handoff in the URL fragment; the frontend removes it immediately and exchanges it through the same-origin Pages proxy. The session cookie is then set on Pages.
+
+Keep the GitHub OAuth App callback URL set to:
+
+```text
+https://project-espera-api.hfainvididual.workers.dev/api/auth/github/callback
+```
+
+Apply D1 migrations before deploying the Worker so migration `0005_oauth_handoffs.sql` is present.
 
 ## Current deployment
 
 - API Worker: `https://project-espera-api.hfainvididual.workers.dev`
 - Frontend: `https://project-espera-web.pages.dev`
 - D1 database: `project-espera-db`
-- Verified Worker version: `46e6f5af-14d3-4c26-9efc-03d786953527`
-- Wrangler: `4.135.0`
+- OAuth callback: `https://project-espera-api.hfainvididual.workers.dev/api/auth/github/callback`
 
 ## Credential lifecycle
 
-Provider API keys are session-only BYOK values. They must not be placed in D1, Web Storage, URLs, logs, context runs, Git, or Cloudflare project configuration.
+Provider API keys stay in browser memory by default and must not be written unencrypted to D1, Web Storage, URLs, logs, context runs, Git, or Cloudflare project configuration. If a user explicitly chooses Remember key, the Worker encrypts the key with AES-GCM before storing ciphertext in D1.
+
+`.env`, `.dev.vars`, local database files, private keys, and Wrangler state are excluded by `.gitignore`. Only placeholder values belong in `.env.example`.

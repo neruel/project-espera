@@ -8,6 +8,8 @@ export function createAuthRoutes(db: D1Database, config: AuthConfig) {
   router.get('/me', (c) => auth.me(c.req.raw));
   router.get('/github', (c) => auth.beginGithub(c.req.raw));
   router.get('/github/callback', (c) => auth.finishGithub(c.req.raw));
+  router.post('/exchange', (c) => auth.exchangeGithubHandoff(c.req.raw));
   router.post('/logout', (c) => auth.logout(c.req.raw));
+  router.delete('/account', (c) => auth.deleteAccount(c.req.raw));
   return router;
 }

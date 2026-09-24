@@ -11,6 +11,7 @@ export async function createTestDatabase(options: { filePath?: string } = {}): P
     ? new Uint8Array(fs.readFileSync(options.filePath))
     : undefined;
   const db = new SQL.Database(existing);
+  db.exec('PRAGMA foreign_keys = ON');
 
   // Find and read migration schema
   const migrationDir = path.basename(process.cwd()) === 'server'

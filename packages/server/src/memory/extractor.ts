@@ -20,14 +20,16 @@ export class MemoryExtractor {
   ): Promise<MemoryCandidate[]> {
     try {
       // MockProvider deterministic path for automated testing & offline execution
+      let candidates: MemoryCandidate[];
       if (provider.id === 'mock') {
-        return this.extractFromMock(userMessage);
+        candidates = this.extractFromMock(userMessage);
+      } else {
+        // Real LLM provider extraction with structured schema
+        candidates = await this.extractWithLLM(userMessage, assistantMessage, provider, credential, modelId);
       }
-
-      // Real LLM provider extraction with structured schema
-      return await this.extractWithLLM(userMessage, assistantMessage, provider, credential, modelId);
+      return candidates.filter((candidate) => !this.containsForbiddenContent(candidate));
     } catch (err) {
-      console.error('[MemoryExtractor] Extraction failed safely (chat not impacted):', err);
+      console.error('[MemoryExtractor] Extraction failed safely (chat not impacted):', err instanceof Error ? err.name : 'unknown_error');
       return [];
     }
   }
@@ -125,20 +127,20 @@ RULES:
     const validCandidates: MemoryCandidate[] = [];
     for (const item of rawObj.candidates) {
       const parsed = MemoryCandidateSchema.safeParse(item);
-      if (parsed.success) {
-        // Enforce forbidden filter
-        const isForbidden = FORBIDDEN_KEYWORDS.some(
-          (kw) =>
-            parsed.data.canonicalText.toLowerCase().includes(kw) ||
-            parsed.data.subject.toLowerCase().includes(kw) ||
-            parsed.data.predicate.toLowerCase().includes(kw)
-        );
-        if (!isForbidden) {
-          validCandidates.push(parsed.data);
-        }
-      }
+      if (parsed.success) validCandidates.push(parsed.data);
     }
 
     return validCandidates;
+  }
+
+  private containsForbiddenContent(candidate: MemoryCandidate): boolean {
+    const content = [
+      candidate.subject,
+      candidate.predicate,
+      candidate.canonicalText,
+      JSON.stringify(candidate.valueJson),
+      candidate.snippet,
+    ].join('\n').toLowerCase();
+    return FORBIDDEN_KEYWORDS.some((keyword) => content.includes(keyword));
   }
 }

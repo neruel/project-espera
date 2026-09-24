@@ -16,6 +16,7 @@ import { ProjectRepository } from '../db/repositories/project.repo.js';
 import { requestUserId } from '../auth/service.js';
 import { ProviderConnectionRepository } from '../db/repositories/provider-connection.repo.js';
 import type { Message } from '@espera/shared';
+import { ProviderError } from '../providers/http.js';
 
 export function createChatRoutes(db: D1Database, registry: ProviderRegistry, credentialEncryptionKey?: string) {
   const router = new Hono();
@@ -190,10 +191,11 @@ export function createChatRoutes(db: D1Database, registry: ProviderRegistry, cre
             }),
             event: 'done',
           });
-        } catch (err: any) {
-          console.error('[ChatRoute] Stream error:', err);
+        } catch (err: unknown) {
+          console.error('[ChatRoute] Stream error:', err instanceof Error ? err.name : 'unknown_error');
           if (createdUserMessage && !responsePersisted) await convRepo.deleteMessage(userMsg.id, convId);
-          try { await stream.writeSSE({ data: JSON.stringify({ error: err.message || 'Streaming failed' }), event: 'error' }); } catch { /* client disconnected */ }
+          const message = err instanceof ProviderError ? err.message : 'Streaming failed';
+          try { await stream.writeSSE({ data: JSON.stringify({ error: message }), event: 'error' }); } catch { /* client disconnected */ }
         }
       });
     } else {

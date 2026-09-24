@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState, useEffect } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { Navbar } from './components/Navbar.js';
 import { ChatView } from './components/Chat/ChatView.js';
 import {
@@ -37,6 +37,7 @@ export function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+  const authInitializationStarted = useRef(false);
 
   useEffect(() => {
     saveSessionState(session);
@@ -49,7 +50,17 @@ export function App() {
   }
 
   useEffect(() => {
-    void loadAuth();
+    if (authInitializationStarted.current) return;
+    authInitializationStarted.current = true;
+    const handoff = api.consumeGithubHandoff();
+    void (async () => {
+      try {
+        if (handoff) await api.exchangeGithubHandoff(handoff);
+        await loadAuth();
+      } catch (error) {
+        setAuthError(error instanceof Error ? error.message : 'GitHub login could not be completed');
+      }
+    })();
     const onAuthRequired = () => setAuth((current) => current ? { ...current, authenticated: false, user: null } : current);
     window.addEventListener('espera:auth-required', onAuthRequired);
     return () => window.removeEventListener('espera:auth-required', onAuthRequired);

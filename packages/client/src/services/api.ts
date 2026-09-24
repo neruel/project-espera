@@ -12,7 +12,10 @@ import type {
   Project,
 } from '@espera/shared';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+// Keep API requests same-origin so session cookies work in browsers that block
+// third-party cookies. Cloudflare Pages forwards /api/* to the API Worker.
+const BASE_URL = '';
+const AUTH_ORIGIN = 'https://project-espera-api.hfainvididual.workers.dev';
 
 async function request(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   const response = await fetch(input, { ...init, credentials: 'include' });
@@ -77,12 +80,42 @@ export const api = {
   },
 
   loginWithGitHub(): void {
-    window.location.assign(`${BASE_URL}/api/auth/github`);
+    // Start OAuth on the Worker origin so its state cookie returns to the
+    // registered Worker callback. The callback hands off to Pages for session creation.
+    window.location.assign(`${AUTH_ORIGIN}/api/auth/github`);
+  },
+
+  consumeGithubHandoff(): string | null {
+    if (!window.location.hash) return null;
+    const fragment = new URLSearchParams(window.location.hash.slice(1));
+    const ticket = fragment.get('espera_handoff');
+    if (!ticket) return null;
+    fragment.delete('espera_handoff');
+    const hash = fragment.size ? `#${fragment.toString()}` : '';
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}${hash}`);
+    return ticket;
+  },
+
+  async exchangeGithubHandoff(ticket: string): Promise<void> {
+    const res = await request(`${BASE_URL}/api/auth/exchange`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticket }),
+    });
+    if (!res.ok) throw new Error('GitHub login could not be completed');
   },
 
   async logout(): Promise<void> {
     const res = await request(`${BASE_URL}/api/auth/logout`, { method: 'POST' });
     if (!res.ok) throw new Error('Could not sign out');
+  },
+
+  async deleteAccount(): Promise<void> {
+    const res = await request(`${BASE_URL}/api/auth/account`, { method: 'DELETE' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Account could not be deleted');
+    }
   },
 
   async getProjects(): Promise<Project[]> {

@@ -27,6 +27,26 @@ export function createApp(db: D1Database, registry?: ProviderRegistry, options?:
     })
   );
 
+  app.use('*', async (c, next) => {
+    const origin = c.req.header('Origin');
+    const method = c.req.method.toUpperCase();
+    const isWrite = !['GET', 'HEAD', 'OPTIONS'].includes(method);
+    const trustedOrigin = options?.allowedOrigin && options.allowedOrigin !== '*'
+      ? options.allowedOrigin
+      : undefined;
+    if (isWrite && origin && trustedOrigin && origin !== trustedOrigin) {
+      c.header('X-Content-Type-Options', 'nosniff');
+      c.header('Referrer-Policy', 'no-referrer');
+      c.header('Cache-Control', 'no-store');
+      return c.json({ error: 'origin_not_allowed' }, 403);
+    }
+
+    await next();
+    c.header('X-Content-Type-Options', 'nosniff');
+    c.header('Referrer-Policy', 'no-referrer');
+    c.header('Cache-Control', 'no-store');
+  });
+
   app.use('/api/*', async (c, next) => {
     const pathname = new URL(c.req.url).pathname;
     if (pathname === '/api/health' || pathname.startsWith('/api/auth/')) return next();
@@ -46,7 +66,7 @@ export function createApp(db: D1Database, registry?: ProviderRegistry, options?:
     return c.json({
       status: 'ok',
       name: 'Project Espera API Engine',
-      version: '1.0.0',
+      version: '1.0.0-beta.1',
       timestamp: new Date().toISOString(),
     });
   });
@@ -62,7 +82,7 @@ export function createApp(db: D1Database, registry?: ProviderRegistry, options?:
   app.route('/api/projects', createProjectRoutes(db));
 
   app.onError((err, c) => {
-    console.error('[App Error]', err instanceof Error ? err.name : 'unknown_error', err instanceof Error ? err.message : '');
+    console.error('[App Error]', err instanceof Error ? err.name : 'unknown_error');
     return c.json(
       {
         error: 'Internal Server Error',

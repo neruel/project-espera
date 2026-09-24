@@ -165,8 +165,10 @@ Desktop에서는 상단 navigation과 좌측 conversation sidebar를 사용합�
 - GitHub OAuth secret은 Cloudflare secret입니다.
 - session token은 hash만 D1에 저장합니다.
 - API Key는 기본적으로 session-only이며 사용자가 선택한 경우 Worker master secret으로 AES-GCM 암호화해 저장합니다.
-- CORS는 production frontend origin으로 제한합니다.
-- endpoint URL은 공통 검증과 redirect 차단을 거쳐야 하며, 임의 custom host에 대한 DNS rebinding 방어는 Worker 환경의 한계로 완전하지 않습니다.
+- 사용자는 계정 메뉴에서 계정과 계정 소유 데이터를 삭제할 수 있으며, 연결된 데이터베이스 행은 cascade 삭제됩니다.
+- 브라우저는 Pages origin의 `/api/*`를 사용하고 Pages Function이 Worker에 전달해 모바일 third-party cookie 의존성을 제거합니다.
+- Worker write 요청은 production frontend `Origin`으로 제한하고 API 응답은 캐시되지 않도록 합니다.
+- Production endpoint policy는 `official-only`이며 임의 custom host의 SSRF/DNS rebinding 위험을 차단합니다.
 - Provider 오류는 정규화하고 credential을 redaction합니다.
 - Context Inspector는 인증정보를 표시하지 않습니다.
 

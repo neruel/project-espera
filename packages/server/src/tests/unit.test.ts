@@ -14,6 +14,7 @@ import {
   type Persona,
 } from '@espera/shared';
 import { maskApiKey, sanitizeLogData } from '../security/crypto.js';
+import { MemoryLifecycleCoordinator } from '../memory/lifecycle.js';
 
 describe('Unit Tests - Project Espera Core Subsystems', () => {
   let db: D1Database;
@@ -247,6 +248,9 @@ describe('Unit Tests - Project Espera Core Subsystems', () => {
 
   // Test 7: Memory revision creation upon approval
   it('7. Memory approval and editing produces immutable revision audit records in D1', async () => {
+    await db.prepare("INSERT INTO conversations (id, user_id, title) VALUES ('conv_memory_test', 'test_user', 'Memory test')").run();
+    await db.prepare("INSERT INTO messages (id, conversation_id, role, content) VALUES ('msg_source_1', 'conv_memory_test', 'user', 'Test memory evidence')").run();
+
     // 1. Create candidate memory (pending)
     const candidate = await memoryRepo.createCandidate({
       userId: 'test_user',
@@ -349,7 +353,7 @@ describe('Unit Tests - Project Espera Core Subsystems', () => {
   });
 
   it('9. Security utilities mask API keys and sanitize sensitive fields from logs and objects', () => {
-    const rawKey = 'sk-proj-1234567890abcdefghijklmnop';
+    const rawKey = `sk-p${'x'.repeat(32)}mnop`;
     const masked = maskApiKey(rawKey);
 
     expect(masked).toBe('sk-p...mnop');
@@ -402,5 +406,68 @@ describe('Unit Tests - Project Espera Core Subsystems', () => {
     // extractor must degrade quietly rather than throw on an empty model list.
     await extractor.extract('나는 컴퓨터공학을 공부한다', 'ok', provider as any);
     expect(calls).toEqual(['gpt-4.1-mini']);
+  });
+
+  it('filters sensitive details from every saved Memory field, including evidence snippets', async () => {
+    const makeCandidate = (overrides: Record<string, unknown> = {}) => ({
+      type: 'preference',
+      subject: 'user',
+      predicate: 'response style',
+      valueJson: 'concise answers',
+      canonicalText: 'The user prefers concise answers.',
+      sourceKind: 'explicit_user_statement',
+      confidence: 0.9,
+      importance: 3,
+      sensitivity: 'low',
+      snippet: 'Please keep answers concise.',
+      ...overrides,
+    });
+    const resultCandidates = [
+      makeCandidate(),
+      makeCandidate({ valueJson: 'anxiety diagnosis' }),
+      makeCandidate({ snippet: 'I am dealing with depression.' }),
+      makeCandidate({ subject: 'politics' }),
+      makeCandidate({ canonicalText: 'A religion preference.' }),
+    ];
+    const provider = {
+      id: 'openai',
+      name: 'Stub OpenAI',
+      listModels: async () => [],
+      validateCredential: async () => true,
+      generate: async ({ modelId }: { modelId: string }) => ({
+        content: JSON.stringify({ candidates: resultCandidates }),
+        modelId,
+      }),
+      stream: async function* () { yield { delta: '', isComplete: true }; },
+      getCapabilities: () => ({ supportsStreaming: true, supportsVision: false, supportsToolCalling: false }),
+    };
+
+    const results = await new MemoryExtractor().extract('I prefer concise answers.', 'Understood.', provider as any, undefined, 'stub-model');
+    expect(results).toHaveLength(1);
+    expect(results[0].canonicalText).toBe('The user prefers concise answers.');
+  });
+
+  it('checks for duplicate memories only in the current project context and global context', async () => {
+    const candidate = {
+      type: 'project', subject: 'user', predicate: 'active project', valueJson: 'Project Espera',
+      canonicalText: 'The user is building Project Espera.', sourceKind: 'explicit_user_statement',
+      confidence: 1, importance: 5, sensitivity: 'low', snippet: 'I am building Project Espera.',
+    };
+    let requestedScope: unknown;
+    let createdScope: unknown;
+    const memoryRepo = {
+      getMemories: async (_userId: string, filters: unknown) => { requestedScope = filters; return []; },
+      createCandidate: async (input: unknown) => { createdScope = input; return { id: 'mem_pending', ...(input as object) } as Memory; },
+    };
+    const extractor = { extract: async () => [candidate] };
+    const lifecycle = new MemoryLifecycleCoordinator(memoryRepo as any, extractor as any, new MemoryDeduplicator());
+
+    await lifecycle.processTurn({
+      userId: 'user_1', projectId: 'project_1', messageId: 'message_1', userMessage: 'context',
+      assistantMessage: 'response', provider: new MockProvider(), modelId: 'mock-model-a',
+    });
+
+    expect(requestedScope).toEqual({ projectId: 'project_1' });
+    expect((createdScope as { projectId?: string }).projectId).toBe('project_1');
   });
 });

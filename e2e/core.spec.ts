@@ -50,3 +50,77 @@ test('keeps the chat workspace usable on a mobile viewport', async ({ page }) =>
   await page.getByRole('dialog').getByRole('button', { name: 'Done' }).click();
   await expect(page.getByRole('dialog', { name: 'Choose model and project' })).toHaveCount(0);
 });
+
+test('completes a GitHub handoff before auth checks on mobile', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('espera_language', 'en'));
+  await page.setViewportSize({ width: 390, height: 844 });
+  let exchanged = false;
+
+  await page.route('**/api/auth/exchange', async (route) => {
+    const body = route.request().postDataJSON() as { ticket?: string };
+    expect(body.ticket).toBe('single-use-test-handoff');
+    exchanged = true;
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+  });
+  await page.route('**/api/auth/me', async (route) => {
+    expect(exchanged).toBe(true);
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        authenticated: true,
+        required: true,
+        configured: true,
+        user: { id: 'user_github_1', name: 'Beta User', email: 'beta@example.com' },
+      }),
+    });
+  });
+
+  await page.goto('/#espera_handoff=single-use-test-handoff');
+  await expect(page.getByLabel('Open conversations')).toBeVisible();
+  expect(await page.evaluate(() => window.location.hash)).toBe('');
+  expect(exchanged).toBe(true);
+});
+
+test('lets a signed-in user delete their account and all associated data', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('espera_language', 'en'));
+  let deleted = false;
+  let deleteRequests = 0;
+
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname === '/api/auth/me') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          authenticated: !deleted,
+          required: true,
+          configured: true,
+          user: deleted ? null : { id: 'user_delete_test', name: 'Delete Test', email: 'delete@example.com' },
+        }),
+      });
+      return;
+    }
+    if (url.pathname === '/api/auth/account' && route.request().method() === 'DELETE') {
+      deleted = true;
+      deleteRequests += 1;
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
+      return;
+    }
+    const body = url.pathname === '/api/providers' ? { providers: [] }
+      : url.pathname === '/api/providers/connections' ? { connections: [] }
+        : url.pathname === '/api/projects' ? { projects: [] }
+          : url.pathname === '/api/conversations' ? { conversations: [] }
+            : { memories: [], hasMore: false };
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  });
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Account' }).click();
+  await page.getByRole('menuitem', { name: 'Delete account' }).click();
+  await expect(page.getByRole('alertdialog', { name: 'Delete your account and data?' })).toBeVisible();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete account' }).click();
+  await expect(page.getByText('Welcome to Espera')).toBeVisible();
+  expect(deleteRequests).toBe(1);
+});
