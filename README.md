@@ -122,7 +122,7 @@ npm run build
 npx wrangler pages deploy packages/client/dist --project-name project-espera-web
 ```
 
-Pages 배포는 저장소 루트에서 실행해야 `functions/`의 API 프록시가 함께 배포됩니다. GitHub OAuth App의 callback URL은 Worker 주소로 유지하세요. Worker와 Pages를 배포하고 D1에 migration 0005를 적용하세요. 운영 Worker는 공식 Provider endpoint만 허용하며, 인증되지 않은 요청은 거부합니다.
+Pages 배포는 저장소 루트에서 실행해야 `functions/`의 API 프록시가 함께 배포됩니다. GitHub OAuth App의 callback URL은 Worker 주소로 유지하세요. Worker와 Pages를 배포하고 D1에 migration 0005를 적용하세요. 운영 Worker는 공식 Provider endpoint와 운영자가 허용한 OpenAI 호환 API endpoint를 허용하며, 인증되지 않은 요청은 거부합니다. 호환 API 호스트 목록은 `packages/server/wrangler.toml`의 `ESPERA_ALLOWED_ENDPOINT_HOSTS`에서 관리합니다. 목록을 바꿀 때는 해당 호스트의 소유·DNS 통제와 전송되는 Key 및 대화 데이터의 처리 방식을 먼저 확인하세요.
 
 현재 production:
 
@@ -146,7 +146,7 @@ Demo의 데이터 처리와 삭제 방법은 [PRIVACY.md](./PRIVACY.md), 취약�
 ## 알려진 제한
 
 - OAuth 로그인은 현재 GitHub provider만 지원합니다.
-- 공개 Demo는 공식 OpenAI, Anthropic, Google endpoint만 허용합니다. OpenAI-compatible endpoint는 자체 배포에서 사용할 수 있습니다.
+- 공개 Demo는 공식 API와 OpenAI 호환 API 중 운영자가 허용 목록에 둔 제공자를 지원합니다. 현재 OpenRouter, DeepSeek, Groq, Together, Fireworks, Mistral, xAI, Cerebras, SiliconFlow, Novita, Perplexity, Venice, Z.ai, MiniMax를 지원합니다. API Key와 대화 내용은 선택한 제공자에게 전송됩니다. 다른 호스트는 운영자가 허용하거나 자체 배포 설정에서 추가해야 합니다.
 - API Key는 기본적으로 새로고침 후 재입력이 필요하며, 사용자가 선택하면 암호화 저장할 수 있습니다.
 - Memory 검색은 현재 D1 키워드 검색 중심입니다.
 - 실제 Provider live test는 별도 API Key와 비용이 발생할 수 있으므로 opt-in입니다.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.0-beta.2 - 2026-09-24
+
+- Added hosted support for OpenAI-compatible APIs from the configured provider host allowlist: OpenRouter, DeepSeek, Groq, Together, Fireworks, Mistral, xAI, Cerebras, SiliconFlow, Novita, Perplexity, Venice, Z.ai, and MiniMax.
+- Restricted hosted endpoint calls to approved HTTPS hosts on port 443; arbitrary hosts and IP-literal URLs are rejected.
+- Explained that the selected API provider receives the API key and conversation content needed for requests.
+- Documented endpoint allowlist configuration and residual SSRF risks for custom self-hosted deployments.
+
 ## 1.0.0-beta.1 — 2026-09-24
 
 First public beta of Project Espera.

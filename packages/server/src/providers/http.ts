@@ -5,7 +5,19 @@ export type ProviderErrorCode = 'invalid_endpoint' | 'endpoint_blocked' | 'dns_r
 export class ProviderError extends Error { constructor(public code: ProviderErrorCode, message: string, public status = 502) { super(message); } }
 
 let configuredEndpointPolicy: string | undefined;
-export function setEndpointPolicy(policy?: string): void { configuredEndpointPolicy = policy; }
+let configuredEndpointHosts: Set<string> | undefined;
+export function setEndpointPolicy(policy?: string, allowedHosts?: string): void {
+  configuredEndpointPolicy = policy;
+  configuredEndpointHosts = allowedHosts
+    ? new Set(allowedHosts.split(',').map((host) => host.trim().toLowerCase()).filter(Boolean))
+    : undefined;
+}
+
+function isLocalHostname(host: string) {
+  const normalized = host.toLowerCase().replace(/\.$/, '');
+  return normalized === 'metadata' || normalized === 'metadata.google.internal' ||
+    ['.localhost', '.local', '.internal', '.home.arpa', '.test', '.invalid', '.example'].some((suffix) => normalized.endsWith(suffix));
+}
 
 function blockedIp(host: string) {
   const h = host.toLowerCase().replace(/^\[|\]$/g, '');
@@ -23,14 +35,21 @@ export function normalizeBaseUrl(value: string | undefined, fallback: string) {
   try { url = new URL(raw); } catch { throw new ProviderError('invalid_endpoint', 'Invalid API base URL', 400); }
   if (url.username || url.password) throw new ProviderError('invalid_endpoint', 'URL 자격증명은 허용되지 않습니다', 400);
   if (url.hash) throw new ProviderError('invalid_endpoint', 'Endpoint fragments are not allowed', 400);
+  if (url.search) throw new ProviderError('invalid_endpoint', 'Endpoint query strings are not allowed', 400);
   const policy = configuredEndpointPolicy || process.env.ESPERA_ENDPOINT_POLICY || (process.env.NODE_ENV === 'production' ? 'official-only' : 'development-local');
   const official = ['api.openai.com', 'api.anthropic.com', 'generativelanguage.googleapis.com'].includes(url.hostname);
-  const local = ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(url.hostname) || blockedIp(url.hostname);
+  const hostname = url.hostname.toLowerCase().replace(/\.$/, '');
+  const ipLiteral = net.isIP(hostname) !== 0;
+  const local = isLocalHostname(hostname) || (hostname.length > 0 && !hostname.includes('.') && !hostname.includes(':')) || ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(hostname) || blockedIp(hostname);
   if (policy === 'official-only' && !official) throw new ProviderError('endpoint_blocked', 'Only official provider endpoints are allowed', 400);
+  if (policy === 'allowlisted-https') {
+    const allowedHosts = configuredEndpointHosts || new Set((process.env.ESPERA_ALLOWED_ENDPOINT_HOSTS || '').split(',').map((host) => host.trim().toLowerCase()).filter(Boolean));
+    if (!allowedHosts.has(url.hostname.toLowerCase())) throw new ProviderError('endpoint_blocked', 'This API host is not enabled on this deployment', 400);
+  }
   if (policy !== 'development-local' && url.protocol !== 'https:') throw new ProviderError('endpoint_blocked', 'HTTPS is required by the endpoint policy', 400);
-  if (policy !== 'development-local' && local) throw new ProviderError('endpoint_blocked', 'Private and loopback endpoints are not allowed', 400);
+  if (policy !== 'development-local' && (local || ipLiteral)) throw new ProviderError('endpoint_blocked', 'Private, loopback, and IP-literal endpoints are not allowed', 400);
   if (url.protocol !== 'https:' && !(policy === 'development-local' && local)) throw new ProviderError('invalid_endpoint', 'HTTPS is required except for development-local endpoints', 400);
-  if (url.port && !['80', '443', '1234', '8000', '8080', '8787'].includes(url.port)) throw new ProviderError('invalid_endpoint', 'Endpoint port is not allowed', 400);
+  if (url.port && (policy === 'allowlisted-https' || !['80', '443', '1234', '8000', '8080', '8787'].includes(url.port))) throw new ProviderError('invalid_endpoint', 'Endpoint port is not allowed', 400);
   return url.toString().replace(/\/$/, '');
 }
 export function endpoint(base: string, path: string) { return `${base.replace(/\/$/, '')}/${path.replace(/^\//, '')}`; }

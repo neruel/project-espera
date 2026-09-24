@@ -29,8 +29,8 @@ export const SettingsView: React.FC<Props> = ({
 }) => {
   const { language, setLanguage, t } = useLanguage();
   const [providerId, setProviderId] = useState("openai-compatible");
-  const [name, setName] = useState("Local API connection");
-  const [baseUrl, setBaseUrl] = useState("http://localhost:1234/v1");
+  const [name, setName] = useState("API connection");
+  const [baseUrl, setBaseUrl] = useState("https://openrouter.ai/api/v1");
   const [key, setKey] = useState("");
   const [manualModel, setManualModel] = useState("");
   const [models, setModels] = useState<ModelDescriptor[]>([]);
@@ -361,6 +361,11 @@ export const SettingsView: React.FC<Props> = ({
                 </p>
                 <p className="mt-2 text-[11px] text-neutral-600">
                   {t("settings.compatibleHint")}
+                </p>
+                <p className="mt-1 text-[11px] text-neutral-600">
+                  {language === "ko"
+                    ? "API Key와 대화 내용은 선택한 API 제공자에게 전송됩니다."
+                    : "Your API key and conversation content are sent to the API provider you choose."}
                 </p>
               </div>
               {editingId && (

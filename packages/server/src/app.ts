@@ -66,7 +66,7 @@ export function createApp(db: D1Database, registry?: ProviderRegistry, options?:
     return c.json({
       status: 'ok',
       name: 'Project Espera API Engine',
-      version: '1.0.0-beta.1',
+      version: '1.0.0-beta.2',
       timestamp: new Date().toISOString(),
     });
   });

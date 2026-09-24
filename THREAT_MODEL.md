@@ -66,11 +66,11 @@ Persistent credential storage changes the trust boundary: a compromise of both D
 - URL userinfo와 `file:`, `data:`, `javascript:` 등 비 HTTP scheme을 차단한다.
 - Provider 요청은 redirect를 수동 처리하고 3xx를 거부하여 다른 host로 Authorization이 전달되지 않게 한다.
 - API Key는 query string, localStorage, sessionStorage, D1, ContextRun에 넣지 않는다. Gemini도 `x-goog-api-key` 헤더를 사용한다.
-- 사용자 지정 Endpoint를 서버가 호출하므로 SSRF 위험이 있다. 운영 배포는 `official-only`로 제한하고, custom endpoint 연결은 신뢰 경계를 검토한 별도 배포에서만 허용한다.
+- 사용자 지정 Endpoint를 서버가 호출하므로 SSRF 위험이 있다. 공개 운영은 `allowlisted-https`로 제한해 운영자가 사전에 승인한 정확한 호스트만 HTTPS/443으로 호출한다. 임의 hostname의 DNS rebinding까지 애플리케이션이 검증할 수는 없으므로 자체 배포에서 호스트를 추가하기 전 DNS와 egress 경계를 검토한다.
 - 로컬 LLM의 HTTP endpoint는 네트워크 도청 위험이 있으므로 loopback 개발에만 사용해야 한다.
 - 외부 Provider 오류는 공통 오류 코드와 정제된 메시지로 변환하며 인증 헤더나 Key를 반환하지 않는다.
 # Endpoint 및 확장 기능 결정
 
-- 운영 정책은 `official-only`로 공식 Provider endpoint만 허용합니다. 사용자 지정 endpoint가 필요한 별도 배포는 `public-https`를 사용할 수 있으나, DNS rebinding과 SSRF 위험을 검토해야 합니다.
+- 운영 정책 `allowlisted-https`는 공식 API와 설정된 OpenAI 호환 API 호스트만 HTTPS/443으로 허용합니다. 정확한 hostname 일치만 허용하며 임의 사용자 지정 호스트는 거부합니다. 자체 배포의 `public-https`는 arbitrary host를 허용하므로, DNS rebinding을 포함한 SSRF 완화책을 별도 egress 계층에서 마련한 경우에만 사용해야 합니다.
 - Embedding semantic search는 승인된 Memory를 추가 외부 서비스에 전송할 수 있어 기본 활성화하지 않습니다. 로컬 embedding 또는 별도 동의·보존·비용 정책이 준비된 뒤 도입합니다.
 - Vision과 Tool calling은 파일·외부 작업이라는 새로운 권한 경계를 만들기 때문에 capability 표시만으로 자동 노출하지 않으며 별도 동의와 도구 allowlist가 필요합니다.

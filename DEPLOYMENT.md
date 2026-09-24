@@ -36,7 +36,7 @@ npx wrangler d1 list
 
 Use only the dedicated `project-espera-db` database configured in `packages/server/wrangler.toml`. Apply migrations with `npx wrangler d1 migrations apply project-espera-db --remote`, then deploy the Worker from `packages/server` with `npx wrangler deploy`.
 
-Production requires GitHub OAuth and fails closed when `ESPERA_AUTH_MODE` is not set. Browser write requests with an `Origin` header must match the configured Pages origin. Production Provider endpoints are restricted to official OpenAI, Anthropic, and Google hosts to reduce SSRF risk.
+Production requires GitHub OAuth and fails closed when `ESPERA_AUTH_MODE` is not set. Browser write requests with an `Origin` header must match the configured Pages origin. The Worker uses `ESPERA_ENDPOINT_POLICY = "allowlisted-https"` and the exact hosts in `ESPERA_ALLOWED_ENDPOINT_HOSTS` (`packages/server/wrangler.toml`). It accepts HTTPS on port 443 and rejects other hosts. Add a host only after reviewing who controls its DNS and where requests and API keys will go; use a separate egress control before enabling arbitrary hosts.
 
 The browser calls `/api/*` on its own Pages origin. The Pages Function in `functions/api/[[path]].ts` forwards those requests to the Worker so session cookies remain first-party on mobile browsers. Deploy Pages from the repository root so Wrangler includes `functions/`:
 
