@@ -2,7 +2,7 @@
 
 **모델은 바꿔도, 맥락은 그대로.** 특정 AI 회사나 모델에 종속되지 않는 개인용 지속형 AI workspace입니다.
 
-**1.0.0 Beta** · [Live demo](https://project-espera-web.pages.dev) · [배포 가이드](./DEPLOYMENT.md) · [변경 내역](./CHANGELOG.md) · MIT License
+**1.0.0** · [Live demo](https://project-espera-web.pages.dev) · [배포 가이드](./DEPLOYMENT.md) · [변경 내역](./CHANGELOG.md) · MIT License
 
 > Demo는 개인이 운영하는 베타 서비스입니다. 민감하거나 기밀인 정보를 입력하지 마세요. 저장 항목과 계정 데이터 삭제 방법은 [개인정보 안내](./PRIVACY.md)를 확인하세요.
 

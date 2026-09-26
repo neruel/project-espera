@@ -9,6 +9,13 @@ import { UserRepository } from '../db/repositories/user.repo.js';
 import { ProviderConnectionRepository } from '../db/repositories/provider-connection.repo.js';
 import { requestUserId } from '../auth/service.js';
 
+// A 401 from this API means the Espera session expired, so the client signs out on it.
+// Upstream 401/403 means the provider rejected the user's API key; report that as 422 instead.
+function providerErrorStatus(error: ProviderError): ContentfulStatusCode {
+  if (error.status === 401 || error.status === 403) return 422;
+  return (error.status || 502) as ContentfulStatusCode;
+}
+
 export function createProviderRoutes(db: D1Database, registry: ProviderRegistry, credentialEncryptionKey?: string) {
   const router = new Hono();
   const userRepo = new UserRepository(db);
@@ -32,7 +39,7 @@ export function createProviderRoutes(db: D1Database, registry: ProviderRegistry,
       return c.json({ models });
     } catch (error) {
       const providerError = error as ProviderError;
-      return c.json({ error: { code: providerError.code || 'provider_unavailable', message: providerError.message || 'Model discovery failed.' } }, (providerError.status || 502) as ContentfulStatusCode);
+      return c.json({ error: { code: providerError.code || 'provider_unavailable', message: providerError.message || 'Model discovery failed.' } }, providerErrorStatus(providerError));
     }
   });
 
@@ -45,7 +52,7 @@ export function createProviderRoutes(db: D1Database, registry: ProviderRegistry,
       return c.json({ providerId, isValid, maskedKey: maskApiKey(credential.apiKey), testedAt: new Date().toISOString() });
     } catch (error) {
       const providerError = error as ProviderError;
-      return c.json({ error: { code: providerError.code || 'unknown_error', message: providerError.message } }, (providerError.status || 502) as ContentfulStatusCode);
+      return c.json({ error: { code: providerError.code || 'unknown_error', message: providerError.message } }, providerErrorStatus(providerError));
     }
   });
 
@@ -96,7 +103,7 @@ export function createProviderRoutes(db: D1Database, registry: ProviderRegistry,
       return c.json({ isValid, testedAt: new Date().toISOString() });
     } catch (error) {
       const providerError = error as ProviderError;
-      return c.json({ error: providerError.message || 'Connection validation failed' }, (providerError.status || 502) as ContentfulStatusCode);
+      return c.json({ error: providerError.message || 'Connection validation failed' }, providerErrorStatus(providerError));
     }
   });
 

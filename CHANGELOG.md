@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 1.0.0 - 2026-09-26
+
+First stable release of Project Espera.
 
 ### Interface redesign
 
@@ -8,7 +10,7 @@
 - Moved Settings into a dialog. The General tab covers theme (light, dark, system), language (Korean, English), and keyboard shortcuts; the Connections tab lists saved connections and the add-connection form.
 - Added Quick setup presets for OpenAI-compatible connections: FactChat, OpenRouter, DeepSeek, and Groq. The FactChat preset fills in `https://factchat-cloud.mindlogic.ai/v1/gateway`.
 - Added a model picker in the chat header, a centered empty state with the composer, a project scope picker in the composer, and copy/regenerate/delete message actions.
-- Added light and dark themes, a self-hosted Pretendard font, and a new starlight logo and favicon.
+- Added light and dark themes, a self-hosted Pretendard font, and a new monochrome starlight logo and favicon. The in-app logo follows the text color, so it is black in the light theme and white in the dark theme.
 - Added keyboard shortcuts: `Ctrl+Shift+O` new chat, `Ctrl+Shift+S` toggle sidebar, `Ctrl+K` or `/` search chats.
 
 ### Security and hardening
@@ -19,6 +21,7 @@
 - Conversation and context-run lookups now require a user ID. Auth mode defaults to `required`; only the local dev server opts into `optional`.
 - Chat requests that omit `projectId` for an existing conversation now inherit that conversation's project context.
 - Saving a provider connection with an ID owned by another user now creates a new connection instead of failing with a server error.
+- A provider rejecting an API key (upstream 401 or 403) is now reported as `422` instead of `401`, so a wrong key during model discovery or connection validation shows an error instead of signing the user out.
 
 ### Deployment
 

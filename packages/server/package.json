@@ -1,6 +1,6 @@
 {
   "name": "@espera/server",
-  "version": "1.0.0-beta.3",
+  "version": "1.0.0",
   "main": "./src/index.ts",
   "scripts": {
     "dev": "tsx src/dev-server.ts",

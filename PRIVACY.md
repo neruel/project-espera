@@ -1,6 +1,6 @@
 # Demo privacy and data handling
 
-Project Espera is an independently operated beta demo. Do not enter confidential, regulated, or otherwise sensitive information.
+Project Espera is an independently operated demo. Do not enter confidential, regulated, or otherwise sensitive information.
 
 ## Data the demo stores
 
