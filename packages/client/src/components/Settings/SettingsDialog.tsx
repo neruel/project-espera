@@ -3,7 +3,7 @@ import { Check, Monitor, Moon, MoreHorizontal, Plug, RefreshCw, Settings2, Sun, 
 import type { ModelDescriptor } from '@espera/shared';
 import { api, type ProviderInfo } from '../../services/api.js';
 import type { ProviderConnection, SessionState } from '../../stores/session.js';
-import { useLanguage, type Language } from '../../i18n.js';
+import { useLanguage, type Language, describeError } from '../../i18n.js';
 import type { ThemePreference } from '../../theme.js';
 import { ConfirmDialog } from '../Common/ConfirmDialog.js';
 import { Menu } from '../Common/Menu.js';
@@ -191,7 +191,7 @@ function ConnectionSettings({ session, onUpdateSession, providers, onConfirmOpen
       setModels(discovered);
       setStatus(t('settings.modelsLoaded', { count: discovered.length }));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : t('settings.discoverFailed'));
+      setStatus(describeError(t, error, t('settings.discoverFailed')));
     } finally {
       setBusy(false);
     }
@@ -240,7 +240,7 @@ function ConnectionSettings({ session, onUpdateSession, providers, onConfirmOpen
       resetForm();
       setFormOpen(false);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : t('settings.saveFailed'));
+      setStatus(describeError(t, error, t('settings.saveFailed')));
     } finally {
       setBusy(false);
     }
@@ -271,7 +271,7 @@ function ConnectionSettings({ session, onUpdateSession, providers, onConfirmOpen
       const result = await api.validateSavedProviderConnection(connection.id);
       setStatus(result.isValid ? t('settings.valid') : t('settings.invalid'));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : t('settings.invalid'));
+      setStatus(describeError(t, error, t('settings.invalid')));
     } finally {
       setBusy(false);
     }
@@ -294,7 +294,7 @@ function ConnectionSettings({ session, onUpdateSession, providers, onConfirmOpen
       setStatus(t('settings.deleted'));
       setDeleteTarget(null);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : t('settings.deleteFailed'));
+      setStatus(describeError(t, error, t('settings.deleteFailed')));
     } finally {
       setBusy(false);
     }

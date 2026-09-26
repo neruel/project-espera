@@ -103,7 +103,7 @@ export function createProviderRoutes(db: D1Database, registry: ProviderRegistry,
       return c.json({ isValid, testedAt: new Date().toISOString() });
     } catch (error) {
       const providerError = error as ProviderError;
-      return c.json({ error: providerError.message || 'Connection validation failed' }, providerErrorStatus(providerError));
+      return c.json({ error: providerError.message || 'Connection validation failed', code: providerError.code || 'unknown_error' }, providerErrorStatus(providerError));
     }
   });
 

@@ -3,7 +3,7 @@ import { ArrowDown, FileSearch, Menu as MenuIcon, PanelLeft, SquarePen } from 'l
 import type { Conversation, Message, Project } from '@espera/shared';
 import { api, type ProviderInfo } from '../../services/api.js';
 import type { SessionState } from '../../stores/session.js';
-import { useLanguage } from '../../i18n.js';
+import { useLanguage, describeError } from '../../i18n.js';
 import { ConfirmDialog } from '../Common/ConfirmDialog.js';
 import { Composer, type ComposerHandle } from './Composer.js';
 import { MarkdownContent } from './MarkdownContent.js';
@@ -137,7 +137,7 @@ export function ChatView({
       onConversationsChange(conversations.map((conversation) => (conversation.id === updated.id ? updated : conversation)));
     } catch (error) {
       setProjectId(previous);
-      chat.reportError(error instanceof Error ? error.message : t('chat.error.scope'));
+      chat.reportError(describeError(t, error, t('chat.error.scope')));
     }
   }
 

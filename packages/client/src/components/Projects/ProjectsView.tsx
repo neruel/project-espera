@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { Conversation, Memory, Project } from '@espera/shared';
 import { api } from '../../services/api.js';
-import { useLanguage } from '../../i18n.js';
+import { useLanguage, describeError } from '../../i18n.js';
 import { ConfirmDialog } from '../Common/ConfirmDialog.js';
 import { Modal } from '../Common/Modal.js';
 
@@ -31,7 +31,7 @@ export function ProjectsView({ onProjectsChanged }: { onProjectsChanged?: () => 
     try {
       setProjects(await api.getProjects());
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : t('projects.error.load'));
+      setStatus(describeError(t, error, t('projects.error.load')));
     } finally {
       setLoaded(true);
     }
@@ -57,7 +57,7 @@ export function ProjectsView({ onProjectsChanged }: { onProjectsChanged?: () => 
       closeCreate();
       setStatus(t('projects.created'));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : t('projects.error.create'));
+      setStatus(describeError(t, error, t('projects.error.create')));
     } finally {
       setCreating(false);
     }
@@ -72,7 +72,7 @@ export function ProjectsView({ onProjectsChanged }: { onProjectsChanged?: () => 
       setDeleting(null);
       await onProjectsChanged?.();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : t('projects.error.delete'));
+      setStatus(describeError(t, error, t('projects.error.delete')));
     } finally {
       setSaving(false);
     }
@@ -92,7 +92,7 @@ export function ProjectsView({ onProjectsChanged }: { onProjectsChanged?: () => 
       await onProjectsChanged?.();
       setEditing(null);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : t('projects.error.update'));
+      setStatus(describeError(t, error, t('projects.error.update')));
     } finally {
       setSaving(false);
     }
@@ -110,7 +110,7 @@ export function ProjectsView({ onProjectsChanged }: { onProjectsChanged?: () => 
       const value = await api.getProjectContents(project.id);
       setContents((current) => ({ ...current, [project.id]: value }));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : t('projects.error.contents'));
+      setStatus(describeError(t, error, t('projects.error.contents')));
     } finally {
       setContentsLoading(false);
     }

@@ -20,6 +20,24 @@ const BASE_URL = '';
 const AUTH_ORIGIN: string = import.meta.env.VITE_AUTH_ORIGIN
   ?? (import.meta.env.DEV ? '' : 'https://project-espera-api.hfainvididual.workers.dev');
 
+/**
+ * A failed API call. `message` is the server's English detail for logs; the UI shows
+ * a localized message chosen from `code` (see describeError in i18n.tsx).
+ */
+export class ApiError extends Error {
+  constructor(message: string, readonly code?: string, readonly status?: number) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+function apiError(res: Response, data: any, fallback: string): ApiError {
+  const error = data?.error;
+  const code = typeof error === 'object' && error ? error.code : typeof data?.code === 'string' ? data.code : typeof error === 'string' && /^[a-z_]+$/.test(error) ? error : undefined;
+  const message = typeof error === 'object' && error ? error.message : typeof error === 'string' ? error : undefined;
+  return new ApiError(message || fallback, code, res.status);
+}
+
 async function request(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   const response = await fetch(input, { ...init, credentials: 'include' });
   if (response.status === 401) window.dispatchEvent(new CustomEvent('espera:auth-required'));
@@ -70,7 +88,7 @@ export interface StreamChatParams {
   credential?: { apiKey: string; endpointUrl?: string };
   onDelta: (delta: string) => void;
   onDone: (data: { conversationId: string; messageId: string; contextRunId: string; newPendingMemoriesCount: number }) => void;
-  onError: (error: string) => void;
+  onError: (error: ApiError) => void;
   signal?: AbortSignal;
 }
 
@@ -78,7 +96,7 @@ export const api = {
   async getAuthState(): Promise<AuthState> {
     const res = await request(`${BASE_URL}/api/auth/me`);
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Authentication status could not be loaded');
+    if (!res.ok) throw apiError(res, data, 'Authentication status could not be loaded');
     return data;
   },
 
@@ -105,59 +123,59 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ticket }),
     });
-    if (!res.ok) throw new Error('GitHub login could not be completed');
+    if (!res.ok) throw apiError(res, null, 'GitHub login could not be completed');
   },
 
   async logout(): Promise<void> {
     const res = await request(`${BASE_URL}/api/auth/logout`, { method: 'POST' });
-    if (!res.ok) throw new Error('Could not sign out');
+    if (!res.ok) throw apiError(res, null, 'Could not sign out');
   },
 
   async deleteAccount(): Promise<void> {
     const res = await request(`${BASE_URL}/api/auth/account`, { method: 'DELETE' });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || 'Account could not be deleted');
+      throw apiError(res, data, 'Account could not be deleted');
     }
   },
 
   async getProjects(): Promise<Project[]> {
     const res = await request(`${BASE_URL}/api/projects`);
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Projects could not be loaded');
+    if (!res.ok) throw apiError(res, data, 'Projects could not be loaded');
     return data.projects || [];
   },
 
   async createProject(name: string, description: string): Promise<Project> {
     const res = await request(`${BASE_URL}/api/projects`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, description }) });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Project could not be created');
+    if (!res.ok) throw apiError(res, data, 'Project could not be created');
     return data.project;
   },
 
   async deleteProject(id: string): Promise<void> {
     const res = await request(`${BASE_URL}/api/projects/${encodeURIComponent(id)}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error('Project could not be deleted');
+    if (!res.ok) throw apiError(res, null, 'Project could not be deleted');
   },
 
   async updateProject(id: string, input: { name: string; description: string; status: Project['status'] }): Promise<Project> {
     const res = await request(`${BASE_URL}/api/projects/${encodeURIComponent(id)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Project could not be updated');
+    if (!res.ok) throw apiError(res, data, 'Project could not be updated');
     return data.project;
   },
 
   async getProjectContents(id: string): Promise<{ conversations: Conversation[]; memories: Memory[] }> {
     const res = await request(`${BASE_URL}/api/projects/${encodeURIComponent(id)}/contents`);
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Project contents could not be loaded');
+    if (!res.ok) throw apiError(res, data, 'Project contents could not be loaded');
     return { conversations: data.conversations || [], memories: data.memories || [] };
   },
   // Conversations
   async getConversations(): Promise<Conversation[]> {
     const res = await request(`${BASE_URL}/api/conversations`);
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Conversations could not be loaded');
+    if (!res.ok) throw apiError(res, data, 'Conversations could not be loaded');
     return data.conversations || [];
   },
 
@@ -168,7 +186,7 @@ export const api = {
       body: JSON.stringify({ title: title || 'New Conversation', projectId }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Conversation could not be created');
+    if (!res.ok) throw apiError(res, data, 'Conversation could not be created');
     return data.conversation;
   },
 
@@ -181,7 +199,7 @@ export const api = {
     const query = new URLSearchParams({ offset: String(offset), limit: String(limit) });
     const res = await request(`${BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}/messages?${query}`);
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Messages could not be loaded');
+    if (!res.ok) throw apiError(res, data, 'Messages could not be loaded');
     return { messages: data.messages || [], hasMore: Boolean(data.hasMore) };
   },
 
@@ -190,7 +208,7 @@ export const api = {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Conversation scope could not be updated');
+    if (!res.ok) throw apiError(res, data, 'Conversation scope could not be updated');
     return data.conversation;
   },
 
@@ -199,18 +217,18 @@ export const api = {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Conversation title could not be updated');
+    if (!res.ok) throw apiError(res, data, 'Conversation title could not be updated');
     return data.conversation;
   },
 
   async deleteConversation(conversationId: string): Promise<void> {
     const res = await request(`${BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error('Conversation could not be deleted');
+    if (!res.ok) throw apiError(res, null, 'Conversation could not be deleted');
   },
 
   async deleteMessage(conversationId: string, messageId: string): Promise<void> {
     const res = await request(`${BASE_URL}/api/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error('Message could not be deleted');
+    if (!res.ok) throw apiError(res, null, 'Message could not be deleted');
   },
 
   // Streaming Chat
@@ -240,7 +258,8 @@ export const api = {
     });
 
     if (!res.ok || !res.body) {
-      throw new Error(`Chat request failed with status ${res.status}`);
+      const data = await res.json().catch(() => null);
+      throw apiError(res, data, `Chat request failed with status ${res.status}`);
     }
 
     const reader = res.body.getReader();
@@ -280,7 +299,7 @@ export const api = {
           } else if (event === 'done') {
             params.onDone(parsed);
           } else if (event === 'error') {
-            params.onError(parsed.error || 'Stream error occurred');
+            params.onError(new ApiError(parsed.error || 'Stream error occurred', parsed.code));
           }
         } catch {
           // ignore incomplete json
@@ -308,14 +327,14 @@ export const api = {
 
     const res = await request(`${BASE_URL}/api/memories?${query.toString()}`);
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Memories could not be loaded');
+    if (!res.ok) throw apiError(res, data, 'Memories could not be loaded');
     return { memories: data.memories || [], hasMore: Boolean(data.hasMore) };
   },
 
   async getMemoryDetails(id: string): Promise<{ memory: Memory; revisions: MemoryRevision[]; evidence: MemoryEvidence[] }> {
     const res = await request(`${BASE_URL}/api/memories/${id}`);
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Memory details could not be loaded');
+    if (!res.ok) throw apiError(res, data, 'Memory details could not be loaded');
     return data;
   },
 
@@ -326,7 +345,7 @@ export const api = {
       body: JSON.stringify({ action: 'approve', changeReason: changeReason || 'Approved by user' }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Memory could not be approved');
+    if (!res.ok) throw apiError(res, data, 'Memory could not be approved');
     return data.memory;
   },
 
@@ -340,7 +359,7 @@ export const api = {
       body: JSON.stringify({ action: 'edit_and_approve', ...update }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Memory could not be updated');
+    if (!res.ok) throw apiError(res, data, 'Memory could not be updated');
     return data.memory;
   },
 
@@ -351,7 +370,7 @@ export const api = {
       body: JSON.stringify({ action: 'reject', reason: reason || 'Rejected by user' }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Memory could not be rejected');
+    if (!res.ok) throw apiError(res, data, 'Memory could not be rejected');
     return data.memory;
   },
 
@@ -359,7 +378,7 @@ export const api = {
     const res = await request(`${BASE_URL}/api/memories/${id}?mode=${mode}`, {
       method: 'DELETE',
     });
-    if (!res.ok) { const data = await res.json().catch(() => ({})); throw new Error(data.error || 'Memory could not be archived'); }
+    if (!res.ok) { const data = await res.json().catch(() => ({})); throw apiError(res, data, 'Memory could not be archived'); }
   },
 
   async createMemory(data: {
@@ -376,7 +395,7 @@ export const api = {
       body: JSON.stringify(data),
     });
     const resData = await res.json();
-    if (!res.ok) throw new Error(resData.error || 'Memory could not be created');
+    if (!res.ok) throw apiError(res, resData, 'Memory could not be created');
     return resData.memory;
   },
 
@@ -384,14 +403,14 @@ export const api = {
   async getPersona(): Promise<Persona> {
     const res = await request(`${BASE_URL}/api/persona`);
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Persona could not be loaded');
+    if (!res.ok) throw apiError(res, data, 'Persona could not be loaded');
     return data.persona;
   },
 
   async getPersonaRevisions(): Promise<PersonaRevision[]> {
     const res = await request(`${BASE_URL}/api/persona/revisions`);
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Persona history could not be loaded');
+    if (!res.ok) throw apiError(res, data, 'Persona history could not be loaded');
     return data.revisions || [];
   },
 
@@ -408,14 +427,14 @@ export const api = {
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Persona could not be updated');
+    if (!res.ok) throw apiError(res, data, 'Persona could not be updated');
     return data.persona;
   },
 
   async restorePersonaRevision(version: number): Promise<Persona> {
     const res = await request(`${BASE_URL}/api/persona/revisions/${version}/restore`, { method: 'POST' });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Persona revision could not be restored');
+    if (!res.ok) throw apiError(res, data, 'Persona revision could not be restored');
     return data.persona;
   },
 
@@ -423,13 +442,13 @@ export const api = {
   async getProviders(): Promise<ProviderInfo[]> {
     const res = await request(`${BASE_URL}/api/providers`);
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Providers could not be loaded');
+    if (!res.ok) throw apiError(res, data, 'Providers could not be loaded');
     return data.providers || [];
   },
 
   async listModels(providerId: string, apiKey: string, endpointUrl?: string): Promise<ModelDescriptor[]> {
     const res = await request(`${BASE_URL}/api/providers/models`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({providerId,credential:{apiKey,endpointUrl}}) });
-    const data=await res.json(); if(!res.ok) throw new Error(data.error?.message || '모델 목록 조회 실패'); return data.models || [];
+    const data=await res.json(); if(!res.ok) throw apiError(res, data, 'Model discovery failed'); return data.models || [];
   },
 
   async validateCredential(providerId: string, apiKey: string, endpointUrl?: string): Promise<boolean> {
@@ -442,14 +461,14 @@ export const api = {
       }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error?.message || data.error || 'Credential validation failed');
+    if (!res.ok) throw apiError(res, data, 'Credential validation failed');
     return Boolean(data.isValid);
   },
 
   async getProviderConnections(): Promise<PersistedProviderConnection[]> {
     const res = await request(`${BASE_URL}/api/providers/connections`);
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Provider connections could not be loaded');
+    if (!res.ok) throw apiError(res, data, 'Provider connections could not be loaded');
     return data.connections || [];
   },
 
@@ -468,7 +487,7 @@ export const api = {
       body: JSON.stringify(connection),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Provider connection could not be saved');
+    if (!res.ok) throw apiError(res, data, 'Provider connection could not be saved');
     return data.connection;
   },
 
@@ -476,14 +495,14 @@ export const api = {
     const res = await request(`${BASE_URL}/api/providers/connections/${encodeURIComponent(id)}`, { method: 'DELETE' });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || 'Provider connection could not be deleted');
+      throw apiError(res, data, 'Provider connection could not be deleted');
     }
   },
 
   async validateSavedProviderConnection(id: string): Promise<{ isValid: boolean; testedAt: string }> {
     const res = await request(`${BASE_URL}/api/providers/connections/${encodeURIComponent(id)}/validate`, { method: 'POST' });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Connection validation failed');
+    if (!res.ok) throw apiError(res, data, 'Connection validation failed');
     return data;
   },
 
@@ -491,7 +510,7 @@ export const api = {
   async getContextRun(conversationId: string): Promise<ContextRun | null> {
     const res = await request(`${BASE_URL}/api/inspector/${conversationId}`);
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Context could not be loaded');
+    if (!res.ok) throw apiError(res, data, 'Context could not be loaded');
     return data.contextRun || null;
   },
 };

@@ -8,7 +8,7 @@ import { Logo } from './components/Common/Logo.js';
 import type { SettingsTab } from './components/Settings/SettingsDialog.js';
 import { getInitialSession, saveSessionState, type SessionState } from './stores/session.js';
 import { api, type AuthState, type ProviderInfo } from './services/api.js';
-import { useLanguage } from './i18n.js';
+import { useLanguage, describeError } from './i18n.js';
 import { useTheme } from './theme.js';
 
 const MemoryManager = lazy(() => import('./components/Memory/MemoryManager.js').then((module) => ({ default: module.MemoryManager })));
@@ -64,7 +64,7 @@ export function App() {
   async function loadAuth() {
     setAuthError(null);
     try { setAuth(await api.getAuthState()); }
-    catch (error) { setAuthError(error instanceof Error ? error.message : t('app.authFailed')); }
+    catch (error) { setAuthError(describeError(t, error, t('app.authFailed'))); }
   }
 
   useEffect(() => {
@@ -76,7 +76,7 @@ export function App() {
         if (handoff) await api.exchangeGithubHandoff(handoff);
         await loadAuth();
       } catch (error) {
-        setAuthError(error instanceof Error ? error.message : t('app.githubFailed'));
+        setAuthError(describeError(t, error, t('app.githubFailed')));
       }
     })();
     const onAuthRequired = () => setAuth((current) => (current ? { ...current, authenticated: false, user: null } : current));
@@ -91,7 +91,7 @@ export function App() {
 
   function fail(error: unknown, fallback: string) {
     console.error(fallback, error);
-    setWorkspaceError(error instanceof Error ? error.message : fallback);
+    setWorkspaceError(describeError(t, error, fallback));
   }
 
   async function loadProviders() {

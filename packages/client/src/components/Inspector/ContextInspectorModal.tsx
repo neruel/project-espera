@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import type { ContextRun } from '@espera/shared';
 import { api } from '../../services/api.js';
-import { useLanguage } from '../../i18n.js';
+import { useLanguage, describeError } from '../../i18n.js';
 import { Modal } from '../Common/Modal.js';
 
 interface ContextInspectorModalProps {
@@ -30,7 +30,7 @@ export function ContextInspectorModal({ conversationId, isOpen, onClose }: Conte
     try {
       setRun(await api.getContextRun(id));
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : t('inspector.loadFailed'));
+      setErrorMessage(describeError(t, error, t('inspector.loadFailed')));
     } finally {
       setLoading(false);
     }

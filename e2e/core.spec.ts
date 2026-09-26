@@ -129,3 +129,25 @@ test('lets a signed-in user delete their account and all associated data', async
   await expect(page.getByText('Welcome to Espera')).toBeVisible();
   expect(deleteRequests).toBe(1);
 });
+
+test('defaults to Korean and shows a Korean error for a rejected API key without signing out', async ({ page }) => {
+  await page.route('**/api/providers/models', (route) => route.fulfill({
+    status: 422,
+    contentType: 'application/json',
+    body: JSON.stringify({ error: { code: 'invalid_credential', message: 'Invalid API key' } }),
+  }));
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: '무엇을 도와드릴까요?' })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'ko');
+
+  await page.getByRole('button', { name: '설정' }).click();
+  await expect(page.getByRole('heading', { name: '설정' })).toBeVisible();
+  await page.getByRole('tab', { name: '모델 연결' }).click();
+  await page.getByRole('button', { name: 'FactChat' }).click();
+  await page.getByRole('textbox', { name: /^API 키/ }).fill('wrong-key');
+  await page.getByRole('button', { name: '모델 불러오기' }).click();
+
+  await expect(page.getByText('API 키가 올바르지 않아요. 키를 확인해 주세요.')).toBeVisible();
+  await expect(page.getByText('Invalid API key')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '설정' })).toBeVisible();
+});

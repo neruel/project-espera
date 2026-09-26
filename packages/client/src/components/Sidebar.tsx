@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BookMarked, FolderClosed, MoreHorizontal, PanelLeft, Pencil, Search, SquarePen, Trash2, UserRound, X } from 'lucide-react';
 import type { Conversation } from '@espera/shared';
 import { api, type AuthState } from '../services/api.js';
-import { useLanguage, type TranslationKey } from '../i18n.js';
+import { useLanguage, type TranslationKey, describeError } from '../i18n.js';
 import { AccountMenu } from './Account/AccountMenu.js';
 import { ConfirmDialog } from './Common/ConfirmDialog.js';
 import { Logo } from './Common/Logo.js';
@@ -151,7 +151,7 @@ export function Sidebar({
       const updated = await api.updateConversationTitle(conversation.id, title);
       onConversationsChange(conversations.map((item) => (item.id === updated.id ? updated : item)));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : t('sidebar.renameFailed'));
+      setStatus(describeError(t, error, t('sidebar.renameFailed')));
     }
   }
 
@@ -162,7 +162,7 @@ export function Sidebar({
       await onDeleteConversation(deleteTarget);
       setDeleteTarget(null);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : t('sidebar.deleteFailed'));
+      setStatus(describeError(t, error, t('sidebar.deleteFailed')));
       setDeleteTarget(null);
     } finally {
       setDeleting(false);

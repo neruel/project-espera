@@ -305,6 +305,22 @@ const ko = {
   'inspector.chooseConversation': '먼저 대화를 선택하세요.',
   'inspector.loadFailed': '컨텍스트를 불러오지 못했어요.',
   'inspector.defaultReason': '기본 활성 메모리',
+  // Errors reported by the API, keyed by server error code
+  'error.invalid_credential': 'API 키가 올바르지 않아요. 키를 확인해 주세요.',
+  'error.permission_denied': '이 API 키로는 해당 기능을 쓸 수 없어요. 제공자 권한을 확인해 주세요.',
+  'error.model_not_found': '모델이나 API 주소를 찾을 수 없어요.',
+  'error.rate_limited': '요청이 너무 많아요. 잠시 후 다시 시도해 주세요.',
+  'error.provider_unavailable': 'AI 제공자 서버가 응답하지 않아요. 잠시 후 다시 시도해 주세요.',
+  'error.timeout': 'AI 제공자의 응답 시간이 초과됐어요.',
+  'error.network_error': 'AI 제공자에 연결하지 못했어요. API 주소를 확인해 주세요.',
+  'error.invalid_response': 'AI 제공자가 예상하지 못한 응답을 보냈어요.',
+  'error.stream_interrupted': '답변을 받는 중에 연결이 끊겼어요.',
+  'error.invalid_endpoint': 'API 주소 형식이 올바르지 않아요. HTTPS 주소인지 확인해 주세요.',
+  'error.endpoint_blocked': '이 API 주소는 사용할 수 없어요.',
+  'error.dns_resolution_failed': 'API 주소의 서버를 찾을 수 없어요.',
+  'error.authentication_required': '로그인이 필요해요. 다시 로그인해 주세요.',
+  'error.origin_not_allowed': '허용되지 않은 주소에서 보낸 요청이에요.',
+  'error.offline': 'Espera 서버에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.',
 };
 
 export type TranslationKey = keyof typeof ko;
@@ -600,6 +616,22 @@ const en: Record<TranslationKey, string> = {
   'inspector.chooseConversation': 'Select a chat first.',
   'inspector.loadFailed': 'Context could not be loaded.',
   'inspector.defaultReason': 'Active by default',
+  // Errors reported by the API, keyed by server error code
+  'error.invalid_credential': 'The API key is invalid. Check the key and try again.',
+  'error.permission_denied': 'This API key cannot use that feature. Check the provider permissions.',
+  'error.model_not_found': 'The model or API address was not found.',
+  'error.rate_limited': 'Too many requests. Try again in a moment.',
+  'error.provider_unavailable': 'The AI provider is not responding. Try again in a moment.',
+  'error.timeout': 'The AI provider took too long to respond.',
+  'error.network_error': 'Could not reach the AI provider. Check the API address.',
+  'error.invalid_response': 'The AI provider sent an unexpected response.',
+  'error.stream_interrupted': 'The connection dropped while receiving the reply.',
+  'error.invalid_endpoint': 'The API address is not valid. Make sure it is an HTTPS address.',
+  'error.endpoint_blocked': 'This API address is not allowed.',
+  'error.dns_resolution_failed': 'The API address server could not be found.',
+  'error.authentication_required': 'You need to sign in again.',
+  'error.origin_not_allowed': 'This request came from an address that is not allowed.',
+  'error.offline': 'Could not reach the Espera server. Check your internet connection.',
 };
 
 const dictionaries: Record<Language, Record<TranslationKey, string>> = { ko, en };
@@ -636,6 +668,18 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(() => ({ language, setLanguage, t }), [language, setLanguage, t]);
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
+}
+
+/**
+ * Localized text for a caught error. Known API error codes get a specific message;
+ * everything else shows the caller's localized fallback, never the raw English detail.
+ */
+export function describeError(t: TranslateFn, error: unknown, fallback: string): string {
+  const code = (error as { code?: unknown } | null)?.code;
+  if (typeof code === 'string' && `error.${code}` in ko) return t(`error.${code}` as TranslationKey);
+  // fetch() rejects with a TypeError when the network or the server is unreachable.
+  if (error instanceof TypeError) return t('error.offline');
+  return fallback;
 }
 
 export function useLanguage(): LanguageContextValue {

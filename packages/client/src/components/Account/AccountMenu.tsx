@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { LogOut, Settings, Trash2 } from 'lucide-react';
 import { api, type AuthState } from '../../services/api.js';
-import { useLanguage } from '../../i18n.js';
+import { useLanguage, describeError } from '../../i18n.js';
 import { ConfirmDialog } from '../Common/ConfirmDialog.js';
 import { Menu } from '../Common/Menu.js';
 
@@ -49,7 +49,7 @@ export function AccountMenu({ auth, onLoggedOut, onOpenSettings }: AccountMenuPr
       await api.deleteAccount();
       window.location.reload();
     } catch (error) {
-      setDeleteError(error instanceof Error ? error.message : t('account.deleteFailed'));
+      setDeleteError(describeError(t, error, t('account.deleteFailed')));
       setDeletingAccount(false);
     }
   }

@@ -11,6 +11,7 @@ First stable release of Project Espera.
 - Added Quick setup presets for OpenAI-compatible connections: FactChat, OpenRouter, DeepSeek, and Groq. The FactChat preset fills in `https://factchat-cloud.mindlogic.ai/v1/gateway`.
 - Added a model picker in the chat header, a centered empty state with the composer, a project scope picker in the composer, and copy/regenerate/delete message actions.
 - Added light and dark themes, a self-hosted Pretendard font, and a new monochrome starlight logo and favicon. The in-app logo follows the text color, so it is black in the light theme and white in the dark theme.
+- Error messages are now fully localized. The UI shows a Korean or English message chosen from the server's error code (for example an invalid API key, a rate limit, or an unreachable server) instead of the raw English server text.
 - Added keyboard shortcuts: `Ctrl+Shift+O` new chat, `Ctrl+Shift+S` toggle sidebar, `Ctrl+K` or `/` search chats.
 
 ### Security and hardening

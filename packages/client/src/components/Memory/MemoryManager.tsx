@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Archive, Check, FileText, MoreHorizontal, Pencil, Plus, Search, X } from 'lucide-react';
 import type { Memory, MemoryEvidence, MemoryRevision, MemoryStatus, MemoryType, Project } from '@espera/shared';
 import { api } from '../../services/api.js';
-import { useLanguage, type TranslationKey } from '../../i18n.js';
+import { useLanguage, type TranslationKey, describeError } from '../../i18n.js';
 import { ConfirmDialog } from '../Common/ConfirmDialog.js';
 import { Menu } from '../Common/Menu.js';
 import { Modal } from '../Common/Modal.js';
@@ -19,8 +19,6 @@ type Details = { revisions: MemoryRevision[]; evidence: MemoryEvidence[] };
 const TYPES: MemoryType[] = ['fact', 'preference', 'constraint', 'goal', 'project', 'relationship'];
 const typeKey = (type: MemoryType) => `memory.type.${type}` as TranslationKey;
 const statusKey = (status: MemoryStatus) => `memory.status.${status}` as TranslationKey;
-const errorText = (error: unknown, fallback: string) => (error instanceof Error ? error.message : fallback);
-
 export function MemoryManager({ onMemoryChanged, projects = [] }: Props) {
   const { t, language } = useLanguage();
   const [tab, setTab] = useState<Tab>('pending');
@@ -68,7 +66,7 @@ export function MemoryManager({ onMemoryChanged, projects = [] }: Props) {
       setMemories((current) => (reset ? page.memories : [...current, ...page.memories]));
       setHasMore(page.hasMore);
     } catch (error) {
-      setErrorMessage(errorText(error, t('memory.loadFailed')));
+      setErrorMessage(describeError(t, error, t('memory.loadFailed')));
     } finally {
       setLoading(false);
     }
@@ -83,7 +81,7 @@ export function MemoryManager({ onMemoryChanged, projects = [] }: Props) {
       await action();
       setSuccessMessage(success);
     } catch (error) {
-      setErrorMessage(errorText(error, t('memory.actionFailed')));
+      setErrorMessage(describeError(t, error, t('memory.actionFailed')));
     } finally {
       setBusyId(null);
     }
@@ -125,7 +123,7 @@ export function MemoryManager({ onMemoryChanged, projects = [] }: Props) {
       const result = await api.getMemoryDetails(memory.id);
       setDetails({ revisions: result.revisions, evidence: result.evidence });
     } catch (error) {
-      setDetailsError(errorText(error, t('memory.detailsFailed')));
+      setDetailsError(describeError(t, error, t('memory.detailsFailed')));
     } finally {
       setDetailsLoading(false);
     }

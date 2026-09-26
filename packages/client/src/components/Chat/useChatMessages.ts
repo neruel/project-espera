@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Message } from '@espera/shared';
 import { api } from '../../services/api.js';
 import type { SessionState } from '../../stores/session.js';
-import { useLanguage } from '../../i18n.js';
+import { useLanguage, describeError } from '../../i18n.js';
 
 interface Options {
   session: SessionState;
@@ -13,8 +13,6 @@ interface Options {
   /** Called whenever a request settles so the conversation list can refresh titles and order. */
   onConversationsStale: () => void;
 }
-
-const errorText = (error: unknown, fallback: string) => (error instanceof Error ? error.message : fallback);
 
 /** Owns the message thread for one conversation: paging, streaming, retry, regenerate, and delete. */
 export function useChatMessages({ session, conversationId, projectId, onConversationCreated, onPendingCountChange, onConversationsStale }: Options) {
@@ -56,7 +54,7 @@ export function useChatMessages({ session, conversationId, projectId, onConversa
       setMessages(page.messages);
       setHasOlderMessages(page.hasMore);
     } catch (error) {
-      setErrorMessage(errorText(error, t('chat.error.load')));
+      setErrorMessage(describeError(t, error, t('chat.error.load')));
     } finally {
       setLoading(false);
     }
@@ -72,7 +70,7 @@ export function useChatMessages({ session, conversationId, projectId, onConversa
       setHasOlderMessages(page.hasMore);
       return true;
     } catch (error) {
-      setErrorMessage(errorText(error, t('chat.error.older')));
+      setErrorMessage(describeError(t, error, t('chat.error.older')));
       return false;
     } finally {
       setLoadingOlder(false);
@@ -160,10 +158,10 @@ export function useChatMessages({ session, conversationId, projectId, onConversa
           }
           onConversationsStale();
         },
-        onError: (error) => fail(error),
+        onError: (error) => fail(describeError(t, error, t('chat.error.request'))),
       });
     } catch (error) {
-      if ((error as { name?: string })?.name !== 'AbortError') fail(errorText(error, t('chat.error.request')));
+      if ((error as { name?: string })?.name !== 'AbortError') fail(describeError(t, error, t('chat.error.request')));
     } finally {
       abortControllerRef.current = null;
     }
@@ -196,7 +194,7 @@ export function useChatMessages({ session, conversationId, projectId, onConversa
       await api.deleteMessage(conversationId, message.id);
       setMessages((current) => current.filter((item) => item.id !== message.id));
     } catch (error) {
-      setErrorMessage(errorText(error, t('chat.error.delete')));
+      setErrorMessage(describeError(t, error, t('chat.error.delete')));
     }
   }
 

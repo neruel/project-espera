@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Pencil, RotateCcw } from 'lucide-react';
 import type { Persona, PersonaRevision } from '@espera/shared';
 import { api } from '../../services/api.js';
-import { useLanguage, type TranslateFn } from '../../i18n.js';
+import { useLanguage, type TranslateFn, describeError } from '../../i18n.js';
 import { ConfirmDialog } from '../Common/ConfirmDialog.js';
 import { Modal } from '../Common/Modal.js';
 
@@ -26,7 +26,7 @@ export function PersonaEditor() {
       setPersona(current);
       setRevisions(history);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : t('persona.loadFailed'));
+      setErrorMessage(describeError(t, error, t('persona.loadFailed')));
     }
   }
 
@@ -60,7 +60,7 @@ export function PersonaEditor() {
       setRevisions(await api.getPersonaRevisions());
       setEditing(false);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : t('persona.saveFailed'));
+      setErrorMessage(describeError(t, error, t('persona.saveFailed')));
     } finally {
       setSaving(false);
     }
@@ -76,7 +76,7 @@ export function PersonaEditor() {
       setSelectedRevision(null);
       setRestoreTarget(null);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : t('persona.restoreFailed'));
+      setErrorMessage(describeError(t, error, t('persona.restoreFailed')));
       setRestoreTarget(null);
     } finally {
       setSaving(false);

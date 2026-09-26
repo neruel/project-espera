@@ -198,7 +198,8 @@ export function createChatRoutes(db: D1Database, registry: ProviderRegistry, cre
           console.error('[ChatRoute] Stream error:', err instanceof Error ? err.name : 'unknown_error');
           if (createdUserMessage && !responsePersisted) await convRepo.deleteMessage(userMsg.id, convId);
           const message = err instanceof ProviderError ? err.message : 'Streaming failed';
-          try { await stream.writeSSE({ data: JSON.stringify({ error: message }), event: 'error' }); } catch { /* client disconnected */ }
+          const code = err instanceof ProviderError ? err.code : 'stream_interrupted';
+          try { await stream.writeSSE({ data: JSON.stringify({ error: message, code }), event: 'error' }); } catch { /* client disconnected */ }
         }
       });
     } else {
