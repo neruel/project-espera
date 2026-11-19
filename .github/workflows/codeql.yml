@@ -24,5 +24,5 @@ jobs:
       - uses: github/codeql-action/init@d8073367669608af8fbcc5f63dd0a0d52bb90cff # v4
         with:
           languages: javascript-typescript
-      - uses: github/codeql-action/autobuild@d8073367669608af8fbcc5f63dd0a0d52bb90cff # v4
+      - uses: github/codeql-action/autobuild@e9c4b4b153701845b921f167180044d14fe89b94 # v4
       - uses: github/codeql-action/analyze@d8073367669608af8fbcc5f63dd0a0d52bb90cff # v4
